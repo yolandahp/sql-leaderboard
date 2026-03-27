@@ -1,0 +1,78 @@
+services:
+  # Application database — stores users, challenges, submissions, scores
+  app-db:
+    image: postgres:16
+    container_name: leaderboard-app-db
+    environment:
+      POSTGRES_USER: ${APP_DB_USER}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD}
+      POSTGRES_DB: ${APP_DB_NAME}
+    ports:
+      - "5434:5432"
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${APP_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Sandbox PostgreSQL instance (primary) — for executing user queries
+  sandbox-pg:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - sandbox-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: leaderboard-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${APP_DB_USER}:${APP_DB_PASSWORD}@app-db:5432/${APP_DB_NAME}
+      SANDBOX_DATABASE_URL: postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8000:8000"
+    depends_on:
+      app-db:
+        condition: service_healthy
+      sandbox-pg:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  # Frontend dev server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: leaderboard-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+volumes:
+  app-db-data:
+  sandbox-data:
