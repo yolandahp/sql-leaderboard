@@ -1,8 +1,128 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { apiFetch } from "../api/client";
+
+interface Challenge {
+  id: number;
+  title: string;
+  description: string;
+  difficulty: string;
+  time_limit_ms: number;
+  is_active: boolean;
+  created_at: string;
+  submission_count: number;
+  best_time_ms: number | null;
+  schema_tables: string[];
+}
+
+const difficultyBadge: Record<string, string> = {
+  easy: "bg-green-100 text-green-800",
+  medium: "bg-yellow-100 text-yellow-800",
+  hard: "bg-red-100 text-red-800",
+};
+
 function Challenges() {
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch<Challenge[]>("/api/challenges")
+      .then(setChallenges)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered =
+    filter === "all"
+      ? challenges
+      : challenges.filter((c) => c.difficulty === filter);
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Challenges</h2>
-      <p className="text-gray-500">No challenges yet. Check back soon!</p>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Challenges</h2>
+        <div className="flex gap-2">
+          {["all", "easy", "medium", "hard"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+                filter === f
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-gray-500">Loading challenges...</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-gray-500">No challenges yet. Check back soon!</p>
+      ) : (
+        <div className="grid gap-4">
+          {filtered.map((c) => (
+            <Link
+              key={c.id}
+              to={`/challenges/${c.id}`}
+              className="block bg-white rounded-xl shadow hover:shadow-md transition p-6"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {c.title}
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        difficultyBadge[c.difficulty] ??
+                        "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {c.difficulty.charAt(0).toUpperCase() +
+                        c.difficulty.slice(1)}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3">{c.description}</p>
+                  <div className="flex gap-6 text-xs text-gray-500">
+                    {c.schema_tables && c.schema_tables.length > 0 && (
+                      <span>
+                        Schema:{" "}
+                        <span className="text-gray-700">
+                          {c.schema_tables.join(", ")}
+                        </span>
+                      </span>
+                    )}
+                    <span>
+                      Timeout:{" "}
+                      <span className="text-gray-700">
+                        {c.time_limit_ms / 1000}s
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right ml-6">
+                  <p className="text-sm text-gray-500">
+                    {c.submission_count} submissions
+                  </p>
+                  {c.best_time_ms != null && (
+                    <p className="text-sm text-gray-500">
+                      Best:{" "}
+                      <span className="font-medium text-green-600">
+                        {c.best_time_ms.toFixed(2)} ms
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
