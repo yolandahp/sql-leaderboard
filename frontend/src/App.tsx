@@ -9,11 +9,21 @@ import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import AdminChallenges from "./pages/AdminChallenges";
+import ChallengeForm from "./pages/ChallengeForm";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   return user ? <>{children}</> : <Navigate to="/login" />;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (!user.is_admin) return <Navigate to="/" />;
+  return <>{children}</>;
 }
 
 function AppRoutes() {
@@ -34,6 +44,30 @@ function AppRoutes() {
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/challenges"
+            element={
+              <AdminRoute>
+                <AdminChallenges />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/challenges/new"
+            element={
+              <AdminRoute>
+                <ChallengeForm />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/challenges/:id/edit"
+            element={
+              <AdminRoute>
+                <ChallengeForm />
+              </AdminRoute>
             }
           />
         </Routes>
