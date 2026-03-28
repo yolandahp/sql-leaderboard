@@ -14,5 +14,5 @@ class SubmissionSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user_id", "challenge_id", "query", "is_correct",
             "execution_time_ms", "planning_time_ms", "total_cost",
-            "error_message", "submitted_at",
+            "explain_output", "error_message", "submitted_at",
         ]

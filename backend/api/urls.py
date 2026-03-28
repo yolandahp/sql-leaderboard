@@ -18,6 +18,9 @@ urlpatterns = [
     # Stats
     path("stats", views.platform_stats),
 
+    # Submissions
+    path("submissions", views.submit_query),
+
     # Leaderboard
     path("leaderboard", views.leaderboard),
     path("leaderboard/challenge/<int:pk>", views.challenge_leaderboard),

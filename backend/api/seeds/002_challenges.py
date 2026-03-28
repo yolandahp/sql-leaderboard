@@ -23,7 +23,25 @@ CHALLENGES = [
             "  order_date DATE\n"
             ");"
         ),
-        "seed_sql": "-- Sample data inserted by sandbox",
+        "seed_sql": (
+            "INSERT INTO customers (name, email, region) VALUES\n"
+            "  ('Alice', 'alice@example.com', 'North'),\n"
+            "  ('Bob', 'bob@example.com', 'South'),\n"
+            "  ('Charlie', 'charlie@example.com', 'North'),\n"
+            "  ('Diana', 'diana@example.com', 'East'),\n"
+            "  ('Eve', 'eve@example.com', 'West');\n\n"
+            "INSERT INTO orders (customer_id, amount, order_date) VALUES\n"
+            "  (1, 150.00, '2026-01-10'),\n"
+            "  (1, 200.00, '2026-02-15'),\n"
+            "  (1, 75.50, '2026-03-01'),\n"
+            "  (2, 300.00, '2026-01-20'),\n"
+            "  (2, 125.00, '2026-02-28'),\n"
+            "  (3, 450.00, '2026-01-05'),\n"
+            "  (3, 50.00, '2026-03-10'),\n"
+            "  (4, 99.99, '2026-02-14'),\n"
+            "  (4, 250.00, '2026-03-05'),\n"
+            "  (4, 175.00, '2026-03-20');"
+        ),
         "ground_truth_query": (
             "SELECT c.name AS customer_name, COUNT(o.id) AS order_count, "
             "COALESCE(SUM(o.amount), 0) AS total_spend "
@@ -57,7 +75,32 @@ CHALLENGES = [
             "  unit_price NUMERIC(10,2)\n"
             ");"
         ),
-        "seed_sql": "-- Sample data inserted by sandbox",
+        "seed_sql": (
+            "INSERT INTO products (name, price) VALUES\n"
+            "  ('Laptop', 999.99),\n"
+            "  ('Phone', 699.99),\n"
+            "  ('Tablet', 449.99),\n"
+            "  ('Monitor', 349.99),\n"
+            "  ('Keyboard', 79.99),\n"
+            "  ('Mouse', 29.99);\n\n"
+            "INSERT INTO regions (name) VALUES\n"
+            "  ('North'), ('South'), ('East');\n\n"
+            "INSERT INTO order_items (product_id, region_id, quantity, unit_price) VALUES\n"
+            "  (1, 1, 10, 999.99),\n"
+            "  (2, 1, 25, 699.99),\n"
+            "  (3, 1, 15, 449.99),\n"
+            "  (4, 1, 8, 349.99),\n"
+            "  (5, 1, 50, 79.99),\n"
+            "  (1, 2, 5, 999.99),\n"
+            "  (2, 2, 30, 699.99),\n"
+            "  (3, 2, 20, 449.99),\n"
+            "  (5, 2, 40, 79.99),\n"
+            "  (6, 2, 100, 29.99),\n"
+            "  (1, 3, 12, 999.99),\n"
+            "  (4, 3, 18, 349.99),\n"
+            "  (5, 3, 60, 79.99),\n"
+            "  (6, 3, 80, 29.99);"
+        ),
         "ground_truth_query": (
             "SELECT * FROM ("
             "SELECT r.name AS region, p.name AS product, "
@@ -92,7 +135,29 @@ CHALLENGES = [
             "  order_date DATE\n"
             ");"
         ),
-        "seed_sql": "-- Sample data inserted by sandbox",
+        "seed_sql": (
+            "INSERT INTO products (name, category, price) VALUES\n"
+            "  ('Laptop Pro', 'Electronics', 1299.99),\n"
+            "  ('Wireless Mouse', 'Electronics', 29.99),\n"
+            "  ('Desk Chair', 'Furniture', 399.99),\n"
+            "  ('Standing Desk', 'Furniture', 599.99),\n"
+            "  ('Python Book', 'Books', 49.99);\n\n"
+            "INSERT INTO orders (product_id, quantity, order_date) VALUES\n"
+            "  (1, 2, '2025-06-01'),\n"
+            "  (1, 1, '2025-06-15'),\n"
+            "  (2, 5, '2025-06-01'),\n"
+            "  (2, 3, '2025-07-10'),\n"
+            "  (3, 1, '2025-06-20'),\n"
+            "  (3, 2, '2025-08-05'),\n"
+            "  (4, 1, '2025-07-01'),\n"
+            "  (4, 1, '2025-09-15'),\n"
+            "  (5, 4, '2025-06-10'),\n"
+            "  (5, 6, '2025-07-20'),\n"
+            "  (1, 3, '2025-08-01'),\n"
+            "  (2, 10, '2025-08-15'),\n"
+            "  (3, 1, '2025-09-01'),\n"
+            "  (5, 2, '2025-10-10');"
+        ),
         "ground_truth_query": (
             "SELECT p.category, o.order_date, "
             "SUM(o.quantity * p.price) AS daily_revenue, "
