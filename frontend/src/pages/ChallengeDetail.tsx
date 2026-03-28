@@ -9,8 +9,9 @@ interface ChallengeInfo {
   description: string;
   difficulty: string;
   schema_sql: string;
+  seed_sql: string;
   time_limit_ms: number;
-  schema_tables: { name: string; columns: string }[];
+  schema_tables: string[];
 }
 
 interface SubmissionResult {
@@ -81,8 +82,8 @@ function ChallengeDetail() {
         body: JSON.stringify({ challenge_id: Number(id), query }),
       });
       setResult(res);
-    } catch (err: any) {
-      setError(err.message || "Submission failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setSubmitting(false);
     }
@@ -117,142 +118,37 @@ function ChallengeDetail() {
       <div className="flex items-center gap-3 mb-2">
         <h2 className="text-2xl font-bold text-gray-900">{challenge.title}</h2>
         {challenge.difficulty && (
-          <span
-            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              challenge.difficulty === "easy"
-                ? "bg-green-100 text-green-800"
-                : challenge.difficulty === "medium"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-red-100 text-red-800"
-            }`}
-          >
-            {challenge.difficulty.charAt(0).toUpperCase() +
-              challenge.difficulty.slice(1)}
-          </span>
+          <DifficultyBadge difficulty={challenge.difficulty} />
         )}
       </div>
       <p className="text-gray-600 mb-6">{challenge.description}</p>
 
       {/* Schema info */}
-      {challenge.schema_tables && challenge.schema_tables.length > 0 && (
+      {challenge.schema_sql && (
         <div className="bg-white rounded-xl shadow p-4 mb-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Schema</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {challenge.schema_tables.map((t) => (
-              <div key={t.name} className="bg-gray-50 rounded p-3">
-                <p className="font-mono font-semibold text-indigo-700 mb-1">
-                  {t.name}
-                </p>
-                <p className="text-gray-600 font-mono text-xs whitespace-pre-line">
-                  {t.columns}
-                </p>
-              </div>
-            ))}
-          </div>
+          {challenge.schema_tables.length > 0 && (
+            <p className="text-xs text-gray-500 mb-2">
+              Tables: {challenge.schema_tables.join(", ")}
+            </p>
+          )}
+          <pre className="bg-gray-50 rounded p-3 font-mono text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto">
+            {challenge.schema_sql}
+          </pre>
         </div>
       )}
 
       {/* SQL Editor + Results */}
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Editor */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">
-            SQL Query
-          </h3>
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full h-40 bg-gray-900 text-green-400 p-4 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            spellCheck={false}
-            placeholder="SELECT ..."
-          />
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !user}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
-            >
-              {submitting ? "Running..." : "Submit Query"}
-            </button>
-          </div>
-          {!user && (
-            <p className="text-xs text-gray-400 mt-2">
-              <Link to="/login" className="text-indigo-600 hover:underline">
-                Login
-              </Link>{" "}
-              to submit queries.
-            </p>
-          )}
-          <p className="text-xs text-gray-400 mt-2">
-            Timeout: {challenge.time_limit_ms / 1000}s | Read-only
-          </p>
-        </div>
-
-        {/* Results */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Results</h3>
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-              <span className="text-red-700 text-sm">{error}</span>
-            </div>
-          )}
-          {!result && !error && (
-            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400 h-40 flex items-center justify-center">
-              Submit a query to see results
-            </div>
-          )}
-          {result && (
-            <div>
-              {/* Status badge */}
-              <div
-                className={`${
-                  result.error_message
-                    ? "bg-red-50 border-red-200"
-                    : result.is_correct
-                      ? "bg-green-50 border-green-200"
-                      : "bg-yellow-50 border-yellow-200"
-                } border rounded-lg p-3 mb-3 flex items-center justify-between`}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      result.error_message
-                        ? "bg-red-500"
-                        : result.is_correct
-                          ? "bg-green-500"
-                          : "bg-yellow-500"
-                    }`}
-                  />
-                  <span
-                    className={`font-semibold text-sm ${
-                      result.error_message
-                        ? "text-red-800"
-                        : result.is_correct
-                          ? "text-green-800"
-                          : "text-yellow-800"
-                    }`}
-                  >
-                    {result.error_message
-                      ? "Error"
-                      : result.is_correct
-                        ? "Correct"
-                        : "Incorrect"}
-                  </span>
-                </div>
-                {result.execution_time_ms != null && (
-                  <span className="text-sm text-gray-600">
-                    {result.execution_time_ms.toFixed(2)} ms
-                  </span>
-                )}
-              </div>
-              {result.error_message && (
-                <div className="bg-white rounded-lg shadow p-4 text-sm text-red-600 font-mono whitespace-pre-wrap">
-                  {result.error_message}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <SqlEditor
+          query={query}
+          onQueryChange={setQuery}
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          isLoggedIn={!!user}
+          timeLimitMs={challenge.time_limit_ms}
+        />
+        <ResultsPanel result={result} error={error} />
       </div>
 
       {/* Tabs for advanced features */}
@@ -276,282 +172,327 @@ function ChallengeDetail() {
             </div>
           </div>
 
-          {/* Execution Details Tab */}
           {activeTab === "execution" && (
-            <div>
-              {result.instances && result.instances.length > 0 ? (
-                <div
-                  className={`grid grid-cols-${Math.min(result.instances.length, 3)} gap-6 mb-6`}
-                >
-                  {result.instances.map((inst, i) => {
-                    const ratio = cacheRatio(inst.buffer_hits, inst.buffer_reads);
-                    return (
-                      <div key={i} className="bg-white rounded-xl shadow p-5">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-semibold text-gray-900 text-sm">
-                            {inst.label}
-                          </h4>
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                            {inst.config}
-                          </span>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">
-                              Execution Time
-                            </span>
-                            <span
-                              className={`font-medium ${
-                                inst.execution_time_ms < 5
-                                  ? "text-green-600"
-                                  : inst.execution_time_ms < 50
-                                    ? "text-yellow-600"
-                                    : "text-red-600"
-                              }`}
-                            >
-                              {inst.execution_time_ms.toFixed(2)} ms
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Planning Time</span>
-                            <span className="font-medium">
-                              {inst.planning_time_ms.toFixed(2)} ms
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Total Cost</span>
-                            <span className="font-medium">
-                              {inst.total_cost.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Rows Returned</span>
-                            <span className="font-medium">
-                              {inst.rows_returned.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Buffer Hits</span>
-                            <span className="font-medium">
-                              {inst.buffer_hits.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Buffer Reads</span>
-                            <span className="font-medium">
-                              {inst.buffer_reads.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="mt-2">
-                            <div className="flex justify-between text-xs text-gray-400 mb-1">
-                              <span>Cache Hit Ratio</span>
-                              <span>{ratio}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  ratio >= 70 ? "bg-green-500" : "bg-yellow-500"
-                                }`}
-                                style={{ width: `${ratio}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm mb-6">
-                  Detailed per-instance results will appear here once
-                  multi-instance testing is configured.
-                </p>
-              )}
-
-              {/* Execution Plan */}
-              {result.explain_output && (
-                <div className="bg-white rounded-xl shadow p-5">
-                  <h4 className="font-semibold text-gray-900 text-sm mb-4">
-                    Execution Plan
-                  </h4>
-                  <pre className="font-mono text-xs whitespace-pre-wrap text-gray-700 bg-gray-50 rounded-lg p-4 overflow-x-auto">
-                    {result.explain_output}
-                  </pre>
-                </div>
-              )}
-            </div>
+            <ExecutionTab result={result} cacheRatio={cacheRatio} />
           )}
-
-          {/* Plan Diff Tab */}
-          {activeTab === "plan-diff" && (
-            <div className="bg-white rounded-xl shadow p-6">
-              <h4 className="font-semibold text-gray-900 mb-4">
-                Plan Diff: Compare Submissions
-              </h4>
-              <p className="text-sm text-gray-500">
-                Plan diff analysis will be available once you have multiple
-                submissions for this challenge. Submit different query variations
-                to compare their execution plans.
-              </p>
-            </div>
-          )}
-
-          {/* Index Advisor Tab */}
-          {activeTab === "index-advisor" && (
-            <div className="bg-white rounded-xl shadow p-6">
-              <h4 className="font-semibold text-gray-900 mb-1">
-                HypoPG Index Recommendations
-              </h4>
-              <p className="text-sm text-gray-500 mb-4">
-                Hypothetical indexes are tested without actually creating them.
-                Cost estimates are from the PostgreSQL planner.
-              </p>
-              <p className="text-sm text-gray-400">
-                Index recommendations will appear here after query analysis.
-              </p>
-            </div>
-          )}
-
-          {/* Cost Explorer Tab */}
+          {activeTab === "plan-diff" && <PlanDiffTab />}
+          {activeTab === "index-advisor" && <IndexAdvisorTab />}
           {activeTab === "cost-explorer" && (
-            <div className="bg-white rounded-xl shadow p-6">
-              <h4 className="font-semibold text-gray-900 mb-1">
-                Cost Model Explorer
-              </h4>
-              <p className="text-sm text-gray-500 mb-6">
-                Adjust PostgreSQL optimizer cost parameters and see how the query
-                plan changes.
-              </p>
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-5">
-                  {[
-                    {
-                      name: "seq_page_cost",
-                      min: 0.1,
-                      max: 4.0,
-                      step: 0.1,
-                      default: 1.0,
-                      desc: "Cost of sequential disk page fetch (default: 1.0)",
-                    },
-                    {
-                      name: "random_page_cost",
-                      min: 1.0,
-                      max: 10.0,
-                      step: 0.1,
-                      default: 4.0,
-                      desc: "Cost of random disk page fetch (default: 4.0, SSD: ~1.1)",
-                    },
-                    {
-                      name: "cpu_tuple_cost",
-                      min: 0.001,
-                      max: 0.1,
-                      step: 0.001,
-                      default: 0.01,
-                      desc: "Cost of processing each row (default: 0.01)",
-                    },
-                    {
-                      name: "effective_cache_size",
-                      min: 0.25,
-                      max: 16,
-                      step: 0.25,
-                      default: 4,
-                      desc: "Planner's assumption of available cache (default: 4 GB)",
-                    },
-                  ].map((param) => (
-                    <CostSlider key={param.name} {...param} />
-                  ))}
-                  <button
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition mt-2"
-                    disabled
-                  >
-                    Re-run EXPLAIN
-                  </button>
-                </div>
-                <div>
-                  <h5 className="font-semibold text-gray-700 text-sm mb-3">
-                    Estimated Plan (with current settings)
-                  </h5>
-                  {result.explain_output ? (
-                    <pre className="bg-gray-50 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap text-gray-700 mb-4">
-                      {result.explain_output}
-                    </pre>
-                  ) : (
-                    <p className="text-sm text-gray-400">
-                      Plan will appear here after re-running EXPLAIN with
-                      adjusted parameters.
-                    </p>
-                  )}
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <h5 className="font-semibold text-amber-800 text-sm mb-1">
-                      Try This
-                    </h5>
-                    <p className="text-sm text-amber-700">
-                      Set{" "}
-                      <code className="bg-amber-100 px-1 rounded">
-                        random_page_cost = 1.1
-                      </code>{" "}
-                      (simulating SSD) -- the planner may switch from Seq Scan to
-                      Index Scan if a suitable index exists.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CostExplorerTab explainOutput={result.explain_output} />
           )}
         </div>
       )}
 
       {/* Challenge Leaderboard */}
       {leaderboard.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Challenge Leaderboard
-          </h3>
-          <div className="bg-white rounded-xl shadow overflow-hidden">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Rank
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Avg Exec Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Submissions
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Last Submit
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {leaderboard.map((row) => (
-                  <tr
-                    key={row.rank}
-                    className={row.rank === 1 ? "bg-yellow-50" : ""}
-                  >
-                    <td className="px-6 py-3 font-semibold text-indigo-600">
-                      #{row.rank}
-                    </td>
-                    <td className="px-6 py-3">{row.username}</td>
-                    <td className="px-6 py-3 font-medium text-green-600">
-                      {row.avg_execution_time_ms.toFixed(2)} ms
-                    </td>
-                    <td className="px-6 py-3">{row.submission_count}</td>
-                    <td className="px-6 py-3 text-gray-500">
-                      {row.last_submitted}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <ChallengeLeaderboard entries={leaderboard} />
+      )}
+    </div>
+  );
+}
+
+// ---- Sub-components ----
+
+function DifficultyBadge({ difficulty }: { difficulty: string }) {
+  const colors: Record<string, string> = {
+    easy: "bg-green-100 text-green-800",
+    medium: "bg-yellow-100 text-yellow-800",
+    hard: "bg-red-100 text-red-800",
+  };
+  return (
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[difficulty] ?? "bg-gray-100 text-gray-800"}`}
+    >
+      {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+    </span>
+  );
+}
+
+function SqlEditor({
+  query,
+  onQueryChange,
+  onSubmit,
+  submitting,
+  isLoggedIn,
+  timeLimitMs,
+}: {
+  query: string;
+  onQueryChange: (q: string) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  isLoggedIn: boolean;
+  timeLimitMs: number;
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 mb-2">SQL Query</h3>
+      <textarea
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        className="w-full h-40 bg-gray-900 text-green-400 p-4 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        spellCheck={false}
+        placeholder="SELECT ..."
+      />
+      <div className="flex gap-3 mt-3">
+        <button
+          onClick={onSubmit}
+          disabled={submitting || !isLoggedIn}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+        >
+          {submitting ? "Running..." : "Submit Query"}
+        </button>
+      </div>
+      {!isLoggedIn && (
+        <p className="text-xs text-gray-400 mt-2">
+          <Link to="/login" className="text-indigo-600 hover:underline">
+            Login
+          </Link>{" "}
+          to submit queries.
+        </p>
+      )}
+      <p className="text-xs text-gray-400 mt-2">
+        Timeout: {timeLimitMs / 1000}s | Read-only
+      </p>
+    </div>
+  );
+}
+
+function ResultsPanel({
+  result,
+  error,
+}: {
+  result: SubmissionResult | null;
+  error: string;
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 mb-2">Results</h3>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+          <span className="text-red-700 text-sm">{error}</span>
         </div>
       )}
+      {!result && !error && (
+        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400 h-40 flex items-center justify-center">
+          Submit a query to see results
+        </div>
+      )}
+      {result && <ResultBadge result={result} />}
+    </div>
+  );
+}
+
+function ResultBadge({ result }: { result: SubmissionResult }) {
+  const isError = !!result.error_message;
+  const variant = isError ? "red" : result.is_correct ? "green" : "yellow";
+  const label = isError ? "Error" : result.is_correct ? "Correct" : "Incorrect";
+
+  const colors = {
+    red: { bg: "bg-red-50 border-red-200", dot: "bg-red-500", text: "text-red-800" },
+    green: { bg: "bg-green-50 border-green-200", dot: "bg-green-500", text: "text-green-800" },
+    yellow: { bg: "bg-yellow-50 border-yellow-200", dot: "bg-yellow-500", text: "text-yellow-800" },
+  }[variant];
+
+  return (
+    <div>
+      <div className={`${colors.bg} border rounded-lg p-3 mb-3 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
+          <span className={`font-semibold text-sm ${colors.text}`}>{label}</span>
+        </div>
+        {result.execution_time_ms != null && (
+          <span className="text-sm text-gray-600">
+            {result.execution_time_ms.toFixed(2)} ms
+          </span>
+        )}
+      </div>
+      {result.error_message && (
+        <div className="bg-white rounded-lg shadow p-4 text-sm text-red-600 font-mono whitespace-pre-wrap">
+          {result.error_message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExecutionTab({
+  result,
+  cacheRatio,
+}: {
+  result: SubmissionResult;
+  cacheRatio: (hits: number, reads: number) => number;
+}) {
+  return (
+    <div>
+      {result.instances && result.instances.length > 0 ? (
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          {result.instances.map((inst, i) => (
+            <InstanceCard key={i} instance={inst} cacheRatio={cacheRatio} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm mb-6">
+          Detailed per-instance results will appear here once multi-instance
+          testing is configured.
+        </p>
+      )}
+      {result.explain_output && (
+        <div className="bg-white rounded-xl shadow p-5">
+          <h4 className="font-semibold text-gray-900 text-sm mb-4">
+            Execution Plan
+          </h4>
+          <pre className="font-mono text-xs whitespace-pre-wrap text-gray-700 bg-gray-50 rounded-lg p-4 overflow-x-auto">
+            {result.explain_output}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InstanceCard({
+  instance,
+  cacheRatio,
+}: {
+  instance: InstanceResult;
+  cacheRatio: (hits: number, reads: number) => number;
+}) {
+  const ratio = cacheRatio(instance.buffer_hits, instance.buffer_reads);
+  const timeColor =
+    instance.execution_time_ms < 5
+      ? "text-green-600"
+      : instance.execution_time_ms < 50
+        ? "text-yellow-600"
+        : "text-red-600";
+
+  const metrics = [
+    { label: "Execution Time", value: `${instance.execution_time_ms.toFixed(2)} ms`, color: timeColor },
+    { label: "Planning Time", value: `${instance.planning_time_ms.toFixed(2)} ms` },
+    { label: "Total Cost", value: instance.total_cost.toLocaleString() },
+    { label: "Rows Returned", value: instance.rows_returned.toLocaleString() },
+    { label: "Buffer Hits", value: instance.buffer_hits.toLocaleString() },
+    { label: "Buffer Reads", value: instance.buffer_reads.toLocaleString() },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl shadow p-5">
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-semibold text-gray-900 text-sm">{instance.label}</h4>
+        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+          {instance.config}
+        </span>
+      </div>
+      <div className="space-y-2 text-sm">
+        {metrics.map((m) => (
+          <div key={m.label} className="flex justify-between">
+            <span className="text-gray-500">{m.label}</span>
+            <span className={`font-medium ${m.color ?? ""}`}>{m.value}</span>
+          </div>
+        ))}
+        <div className="mt-2">
+          <div className="flex justify-between text-xs text-gray-400 mb-1">
+            <span>Cache Hit Ratio</span>
+            <span>{ratio}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full ${ratio >= 70 ? "bg-green-500" : "bg-yellow-500"}`}
+              style={{ width: `${ratio}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanDiffTab() {
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h4 className="font-semibold text-gray-900 mb-4">
+        Plan Diff: Compare Submissions
+      </h4>
+      <p className="text-sm text-gray-500">
+        Plan diff analysis will be available once you have multiple submissions
+        for this challenge.
+      </p>
+    </div>
+  );
+}
+
+function IndexAdvisorTab() {
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h4 className="font-semibold text-gray-900 mb-1">
+        HypoPG Index Recommendations
+      </h4>
+      <p className="text-sm text-gray-500 mb-4">
+        Hypothetical indexes are tested without actually creating them. Cost
+        estimates are from the PostgreSQL planner.
+      </p>
+      <p className="text-sm text-gray-400">
+        Index recommendations will appear here after query analysis.
+      </p>
+    </div>
+  );
+}
+
+function CostExplorerTab({ explainOutput }: { explainOutput: string | null }) {
+  const sliders = [
+    { name: "seq_page_cost", min: 0.1, max: 4.0, step: 0.1, defaultVal: 1.0, desc: "Cost of sequential disk page fetch (default: 1.0)" },
+    { name: "random_page_cost", min: 1.0, max: 10.0, step: 0.1, defaultVal: 4.0, desc: "Cost of random disk page fetch (default: 4.0, SSD: ~1.1)" },
+    { name: "cpu_tuple_cost", min: 0.001, max: 0.1, step: 0.001, defaultVal: 0.01, desc: "Cost of processing each row (default: 0.01)" },
+    { name: "effective_cache_size", min: 0.25, max: 16, step: 0.25, defaultVal: 4, desc: "Planner's assumption of available cache (default: 4 GB)" },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6">
+      <h4 className="font-semibold text-gray-900 mb-1">Cost Model Explorer</h4>
+      <p className="text-sm text-gray-500 mb-6">
+        Adjust PostgreSQL optimizer cost parameters and see how the query plan
+        changes.
+      </p>
+      <div className="grid grid-cols-2 gap-8">
+        <div className="space-y-5">
+          {sliders.map((s) => (
+            <CostSlider key={s.name} {...s} />
+          ))}
+          <button
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition mt-2"
+            disabled
+          >
+            Re-run EXPLAIN
+          </button>
+        </div>
+        <div>
+          <h5 className="font-semibold text-gray-700 text-sm mb-3">
+            Estimated Plan (with current settings)
+          </h5>
+          {explainOutput ? (
+            <pre className="bg-gray-50 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap text-gray-700 mb-4">
+              {explainOutput}
+            </pre>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Plan will appear here after re-running EXPLAIN with adjusted
+              parameters.
+            </p>
+          )}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <h5 className="font-semibold text-amber-800 text-sm mb-1">
+              Try This
+            </h5>
+            <p className="text-sm text-amber-700">
+              Set{" "}
+              <code className="bg-amber-100 px-1 rounded">
+                random_page_cost = 1.1
+              </code>{" "}
+              (simulating SSD) -- the planner may switch from Seq Scan to Index
+              Scan if a suitable index exists.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -561,18 +502,20 @@ function CostSlider({
   min,
   max,
   step,
-  default: defaultVal,
+  defaultVal,
   desc,
 }: {
   name: string;
   min: number;
   max: number;
   step: number;
-  default: number;
+  defaultVal: number;
   desc: string;
 }) {
   const [value, setValue] = useState(defaultVal);
   const precision = step < 0.01 ? 3 : step < 1 ? 1 : 0;
+  const display =
+    name === "effective_cache_size" ? `${value} GB` : value.toFixed(precision);
 
   return (
     <div>
@@ -580,11 +523,7 @@ function CostSlider({
         <span className="text-gray-700 font-medium" style={{ minWidth: 160 }}>
           {name}
         </span>
-        <span className="font-mono text-indigo-600">
-          {name === "effective_cache_size"
-            ? `${value} GB`
-            : value.toFixed(precision)}
-        </span>
+        <span className="font-mono text-indigo-600">{display}</span>
       </div>
       <input
         type="range"
@@ -596,6 +535,42 @@ function CostSlider({
         className="w-full accent-indigo-600"
       />
       <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+    </div>
+  );
+}
+
+function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
+  return (
+    <div className="mt-8">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        Challenge Leaderboard
+      </h3>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Exec Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submissions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Submit</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {entries.map((row) => (
+              <tr key={row.rank} className={row.rank === 1 ? "bg-yellow-50" : ""}>
+                <td className="px-6 py-3 font-semibold text-indigo-600">#{row.rank}</td>
+                <td className="px-6 py-3">{row.username}</td>
+                <td className="px-6 py-3 font-medium text-green-600">
+                  {row.avg_execution_time_ms.toFixed(2)} ms
+                </td>
+                <td className="px-6 py-3">{row.submission_count}</td>
+                <td className="px-6 py-3 text-gray-500">{row.last_submitted}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -44,7 +44,11 @@ services:
       dockerfile: Dockerfile
     container_name: leaderboard-backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://${APP_DB_USER}:${APP_DB_PASSWORD}@app-db:5432/${APP_DB_NAME}
+      DB_NAME: ${APP_DB_NAME}
+      DB_USER: ${APP_DB_USER}
+      DB_PASSWORD: ${APP_DB_PASSWORD}
+      DB_HOST: app-db
+      DB_PORT: 5432
       SANDBOX_DATABASE_URL: postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
     ports:
