@@ -112,6 +112,24 @@ def _sql_literal(value) -> str:
     return f"'{value}'"
 
 
+def _reset_sequences(cur, schema_sql: str) -> None:
+    """Reset SERIAL sequences to max(id)+1 for all tables in schema_sql."""
+    tables = _extract_tables(schema_sql)
+    for table in tables:
+        cur.execute(
+            "SELECT column_name, pg_get_serial_sequence(%s, column_name) "
+            "FROM information_schema.columns "
+            "WHERE table_name = %s AND column_default LIKE 'nextval%%'",
+            [table, table],
+        )
+        for col, seq in cur.fetchall():
+            if seq:
+                cur.execute(
+                    f"SELECT setval('{seq}', COALESCE(MAX({col}), 0) + 1, false) "
+                    f"FROM {table}"
+                )
+
+
 def setup_sandbox(schema_sql: str, seed_sql: str, url: str | None = None) -> None:
     """Create schema and seed data in a sandbox instance."""
     url = url or settings.SANDBOX_DATABASE_URL
@@ -123,6 +141,7 @@ def setup_sandbox(schema_sql: str, seed_sql: str, url: str | None = None) -> Non
                 cur.execute(schema_sql)
             if _has_sql_content(seed_sql):
                 cur.execute(seed_sql)
+                _reset_sequences(cur, schema_sql)
     finally:
         conn.close()
 
