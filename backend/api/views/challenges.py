@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 def _materialize_challenge(challenge):
     """Run seed SQL once, capture deterministic schema, data, and expected output."""
     try:
+        teardown_sandbox(challenge.schema_sql)
         setup_sandbox(challenge.schema_sql, challenge.seed_sql)
 
         # Store only CREATE TABLE statements (no functions/procedures)

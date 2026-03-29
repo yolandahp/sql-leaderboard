@@ -236,6 +236,7 @@ def execute_on_all_instances(
         try:
             schema = challenge.materialized_schema_sql or challenge.schema_sql
             seed = challenge.materialized_seed_sql or challenge.seed_sql
+            teardown_sandbox(schema, url=url)
             setup_sandbox(schema, seed, url=url)
 
             extra_seed, extra_setup = _get_extra_sql(inst["id"], challenge)
