@@ -226,7 +226,10 @@ def run(stdout, style):
         stdout.write("  Challenges already exist, skipping.")
         return
 
+    from api.views.challenges import _materialize_challenge
+
     for data in CHALLENGES:
-        Challenge.objects.create(**data)
+        challenge = Challenge.objects.create(**data)
+        _materialize_challenge(challenge)
 
     stdout.write(style.SUCCESS(f"  Created {len(CHALLENGES)} challenges"))
