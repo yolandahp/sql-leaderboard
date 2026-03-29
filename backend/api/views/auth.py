@@ -14,6 +14,7 @@ from api.serializers import (
     UserSerializer,
     SubmissionSerializer,
 )
+from api.views.leaderboard import get_user_rank
 
 
 @api_view(["POST"])
@@ -70,5 +71,5 @@ def my_stats(request):
         "total_submissions": total_submissions,
         "challenges_solved": challenges_solved,
         "total_challenges": total_challenges,
-        "overall_rank": None,  # Will be computed when leaderboard is implemented
+        "overall_rank": get_user_rank(user),
     })
