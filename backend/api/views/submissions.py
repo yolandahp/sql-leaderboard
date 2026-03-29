@@ -12,9 +12,6 @@ from api.services.executor import (
     ExecutionError,
     InstanceResult,
     execute_on_all_instances,
-    execute_query,
-    setup_sandbox,
-    teardown_sandbox,
 )
 from api.services.query_parser import QueryValidationError, validate_query
 from api.services.scorer import check_correctness
@@ -57,19 +54,11 @@ def submit_query(request):
             query, challenge
         )
 
-        # Run ground truth on primary instance for correctness
-        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
-        try:
-            truth_result = execute_query(
-                challenge.ground_truth_query, challenge.time_limit_ms
-            )
-        finally:
-            try:
-                teardown_sandbox(challenge.schema_sql)
-            except Exception:
-                logger.exception("Failed to tear down sandbox")
-
-        is_correct = check_correctness(user_result, truth_result)
+        # Compare against stored snapshot
+        snapshot = challenge.expected_output or {}
+        truth_columns = snapshot.get("columns", [])
+        truth_rows = snapshot.get("rows", [])
+        is_correct = check_correctness(user_result, truth_columns, truth_rows)
 
         # Aggregate: average execution time across instances
         avg_execution_ms = sum(
@@ -93,8 +82,8 @@ def submit_query(request):
             submission,
             columns=user_result.columns,
             rows=user_result.rows,
-            expected_columns=truth_result.columns,
-            expected_rows=truth_result.rows,
+            expected_columns=truth_columns,
+            expected_rows=truth_rows,
             instance_results=instance_results,
         ))
 

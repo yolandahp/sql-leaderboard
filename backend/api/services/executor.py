@@ -65,6 +65,53 @@ def _extract_tables(schema_sql: str) -> list[str]:
     )
 
 
+def extract_create_tables(schema_sql: str) -> str:
+    """Extract only CREATE TABLE statements from schema SQL (no functions, etc.)."""
+    pattern = re.compile(
+        r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+\s*\([^)]*\)\s*;",
+        re.IGNORECASE | re.DOTALL,
+    )
+    return "\n".join(m.group() for m in pattern.finditer(schema_sql))
+
+
+def dump_table_data(schema_sql: str, url: str | None = None) -> str:
+    """Read all rows from tables in schema_sql and return deterministic INSERT statements."""
+    url = url or settings.SANDBOX_DATABASE_URL
+    tables = _extract_tables(schema_sql)
+    if not tables:
+        return ""
+
+    conn = _connect(url)
+    try:
+        parts = []
+        with conn.cursor() as cur:
+            for table in tables:
+                cur.execute(f"SELECT * FROM {table}")
+                columns = [desc[0] for desc in cur.description]
+                rows = cur.fetchall()
+                if not rows:
+                    continue
+                col_list = ", ".join(columns)
+                for row in rows:
+                    values = ", ".join(_sql_literal(v) for v in row)
+                    parts.append(f"INSERT INTO {table} ({col_list}) VALUES ({values});")
+        return "\n".join(parts)
+    finally:
+        conn.close()
+
+
+def _sql_literal(value) -> str:
+    """Convert a Python value to a SQL literal."""
+    if value is None:
+        return "NULL"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return f"'{value}'"
+
+
 def setup_sandbox(schema_sql: str, seed_sql: str, url: str | None = None) -> None:
     """Create schema and seed data in a sandbox instance."""
     url = url or settings.SANDBOX_DATABASE_URL
@@ -187,7 +234,9 @@ def execute_on_all_instances(
     for inst in instances:
         url = inst["url"]
         try:
-            setup_sandbox(challenge.schema_sql, challenge.seed_sql, url=url)
+            schema = challenge.materialized_schema_sql or challenge.schema_sql
+            seed = challenge.materialized_seed_sql or challenge.seed_sql
+            setup_sandbox(schema, seed, url=url)
 
             extra_seed, extra_setup = _get_extra_sql(inst["id"], challenge)
             if _has_sql_content(extra_seed):
@@ -215,7 +264,7 @@ def execute_on_all_instances(
             ))
         finally:
             try:
-                teardown_sandbox(challenge.schema_sql, url=url)
+                teardown_sandbox(schema, url=url)
             except Exception:
                 logger.exception("Failed to tear down sandbox on %s", inst["id"])
 

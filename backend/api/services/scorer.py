@@ -5,7 +5,8 @@ from .executor import ExecutionResult
 
 def check_correctness(
     user_result: ExecutionResult,
-    truth_result: ExecutionResult,
+    truth_columns: list[str],
+    truth_rows: list,
 ) -> bool:
     """Compare user query output to ground truth.
 
@@ -13,9 +14,12 @@ def check_correctness(
     - Column-order-insensitive (matches by name)
     - Case-insensitive column names
     - Decimal/float normalization
+
+    truth_columns/truth_rows can come from an ExecutionResult or a stored
+    JSON snapshot.
     """
     user_cols = [c.lower() for c in user_result.columns]
-    truth_cols = [c.lower() for c in truth_result.columns]
+    truth_cols = [c.lower() for c in truth_columns]
 
     if sorted(user_cols) != sorted(truth_cols):
         return False
@@ -30,7 +34,7 @@ def check_correctness(
         ]
 
     normalized_user = sorted(_normalize_rows(user_rows))
-    normalized_truth = sorted(_normalize_rows(truth_result.rows))
+    normalized_truth = sorted(_normalize_rows(truth_rows))
     return normalized_user == normalized_truth
 
 

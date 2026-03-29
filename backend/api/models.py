@@ -26,6 +26,18 @@ class Challenge(models.Model):
     index_sql = models.TextField(blank=True, default="", help_text="CREATE INDEX statements for the indexed instance")
     seed_sql_large = models.TextField(blank=True, default="", help_text="Extra seed SQL for the large dataset instance")
     ground_truth_query = models.TextField(help_text="Expected correct query")
+    materialized_schema_sql = models.TextField(
+        blank=True, default="",
+        help_text="CREATE TABLE statements only (no functions)",
+    )
+    materialized_seed_sql = models.TextField(
+        blank=True, default="",
+        help_text="Deterministic INSERT statements generated from seed_sql",
+    )
+    expected_output = models.JSONField(
+        null=True, blank=True,
+        help_text="Snapshot of ground truth output (columns + rows)",
+    )
     time_limit_ms = models.IntegerField(default=5000)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

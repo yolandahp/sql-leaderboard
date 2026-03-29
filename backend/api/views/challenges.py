@@ -14,12 +14,48 @@ from api.serializers import (
     ChallengeCreateUpdateSerializer,
 )
 from api.services.executor import (
+    dump_table_data,
     execute_query,
+    extract_create_tables,
     setup_sandbox,
     teardown_sandbox,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _materialize_challenge(challenge):
+    """Run seed SQL once, capture deterministic schema, data, and expected output."""
+    try:
+        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
+
+        # Store only CREATE TABLE statements (no functions/procedures)
+        challenge.materialized_schema_sql = extract_create_tables(challenge.schema_sql)
+
+        # Materialize seed data as concrete INSERT statements
+        challenge.materialized_seed_sql = dump_table_data(challenge.schema_sql)
+
+        # Snapshot expected output
+        result = execute_query(
+            challenge.ground_truth_query, challenge.time_limit_ms
+        )
+        from api.views.submissions import _serialize_value
+        challenge.expected_output = {
+            "columns": result.columns,
+            "rows": [
+                [_serialize_value(v) for v in row] for row in result.rows
+            ],
+        }
+        challenge.save(update_fields=[
+            "materialized_schema_sql", "materialized_seed_sql", "expected_output",
+        ])
+    except Exception:
+        logger.exception("Failed to materialize challenge %s", challenge.id)
+    finally:
+        try:
+            teardown_sandbox(challenge.schema_sql)
+        except Exception:
+            logger.exception("Failed to tear down sandbox")
 
 
 def _annotate_challenges(qs):
@@ -46,6 +82,7 @@ def challenge_list(request):
     serializer = ChallengeCreateUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     challenge = serializer.save()
+    _materialize_challenge(challenge)
     challenge = _annotate_challenges(Challenge.objects.filter(id=challenge.id)).first()
     return Response(ChallengeAdminSerializer(challenge).data, status=status.HTTP_201_CREATED)
 
@@ -70,7 +107,10 @@ def challenge_detail(request, pk):
 
     serializer = ChallengeCreateUpdateSerializer(challenge, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    challenge = serializer.save()
+    changed = set(serializer.validated_data.keys())
+    if changed & {"schema_sql", "seed_sql", "ground_truth_query"}:
+        _materialize_challenge(challenge)
     challenge = _annotate_challenges(Challenge.objects.filter(id=pk)).first()
     return Response(ChallengeAdminSerializer(challenge).data)
 
@@ -88,7 +128,7 @@ def challenge_admin_detail(request, pk):
 
 @api_view(["GET"])
 def challenge_expected_output(request, pk):
-    """Run ground truth query and return expected output table."""
+    """Return stored expected output for a challenge."""
     try:
         challenge = Challenge.objects.get(pk=pk, is_active=True)
     except Challenge.DoesNotExist:
@@ -97,23 +137,15 @@ def challenge_expected_output(request, pk):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    try:
-        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
-        result = execute_query(
-            challenge.ground_truth_query, challenge.time_limit_ms
-        )
-
-        from api.views.submissions import _build_table
-        return Response(_build_table(result.columns, result.rows))
-
-    except Exception as e:
-        logger.exception("Failed to compute expected output")
+    if not challenge.expected_output:
         return Response(
-            {"detail": "Failed to compute expected output."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            {"detail": "Expected output not yet generated."},
+            status=status.HTTP_404_NOT_FOUND,
         )
-    finally:
-        try:
-            teardown_sandbox(challenge.schema_sql)
-        except Exception:
-            logger.exception("Failed to tear down sandbox")
+
+    snapshot = challenge.expected_output
+    return Response({
+        "columns": snapshot["columns"],
+        "rows": snapshot["rows"],
+        "total_count": len(snapshot["rows"]),
+    })
