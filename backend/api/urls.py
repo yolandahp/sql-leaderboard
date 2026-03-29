@@ -14,6 +14,7 @@ urlpatterns = [
     path("challenges", views.challenge_list),
     path("challenges/<int:pk>", views.challenge_detail),
     path("challenges/<int:pk>/admin", views.challenge_admin_detail),
+    path("challenges/<int:pk>/expected-output", views.challenge_expected_output),
 
     # Stats
     path("stats", views.platform_stats),

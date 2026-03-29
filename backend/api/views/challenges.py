@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Count, Min, Q
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,6 +13,13 @@ from api.serializers import (
     ChallengeAdminSerializer,
     ChallengeCreateUpdateSerializer,
 )
+from api.services.executor import (
+    execute_query,
+    setup_sandbox,
+    teardown_sandbox,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _annotate_challenges(qs):
@@ -75,3 +84,36 @@ def challenge_admin_detail(request, pk):
     except Challenge.DoesNotExist:
         return Response({"detail": "Challenge not found"}, status=status.HTTP_404_NOT_FOUND)
     return Response(ChallengeAdminSerializer(challenge).data)
+
+
+@api_view(["GET"])
+def challenge_expected_output(request, pk):
+    """Run ground truth query and return expected output table."""
+    try:
+        challenge = Challenge.objects.get(pk=pk, is_active=True)
+    except Challenge.DoesNotExist:
+        return Response(
+            {"detail": "Challenge not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
+        result = execute_query(
+            challenge.ground_truth_query, challenge.time_limit_ms
+        )
+
+        from api.views.submissions import _build_table
+        return Response(_build_table(result.columns, result.rows))
+
+    except Exception as e:
+        logger.exception("Failed to compute expected output")
+        return Response(
+            {"detail": "Failed to compute expected output."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    finally:
+        try:
+            teardown_sandbox(challenge.schema_sql)
+        except Exception:
+            logger.exception("Failed to tear down sandbox")

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from .executor import ExecutionResult
 
 
@@ -5,12 +7,42 @@ def check_correctness(
     user_result: ExecutionResult,
     truth_result: ExecutionResult,
 ) -> bool:
-    """Compare user query output to ground truth as unordered row sets."""
-    if user_result.columns != truth_result.columns:
-        # Try case-insensitive column name match
-        if [c.lower() for c in user_result.columns] != [
-            c.lower() for c in truth_result.columns
-        ]:
-            return False
+    """Compare user query output to ground truth.
 
-    return sorted(user_result.rows) == sorted(truth_result.rows)
+    - Order-insensitive (row sets, not sequences)
+    - Column-order-insensitive (matches by name)
+    - Case-insensitive column names
+    - Decimal/float normalization
+    """
+    user_cols = [c.lower() for c in user_result.columns]
+    truth_cols = [c.lower() for c in truth_result.columns]
+
+    if sorted(user_cols) != sorted(truth_cols):
+        return False
+
+    # Reorder user rows to match truth column order if needed
+    if user_cols == truth_cols:
+        user_rows = user_result.rows
+    else:
+        col_mapping = [user_cols.index(tc) for tc in truth_cols]
+        user_rows = [
+            tuple(row[i] for i in col_mapping) for row in user_result.rows
+        ]
+
+    normalized_user = sorted(_normalize_rows(user_rows))
+    normalized_truth = sorted(_normalize_rows(truth_result.rows))
+    return normalized_user == normalized_truth
+
+
+def _normalize_rows(rows: list[tuple]) -> list[tuple]:
+    return [tuple(_normalize_value(v) for v in row) for row in rows]
+
+
+def _normalize_value(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, float):
+        return float(value)
+    return value

@@ -14,6 +14,12 @@ interface ChallengeInfo {
   schema_tables: string[];
 }
 
+interface ResultTable {
+  columns: string[];
+  rows: (string | number | null)[][];
+  total_count: number;
+}
+
 interface SubmissionResult {
   id: number;
   is_correct: boolean;
@@ -22,6 +28,8 @@ interface SubmissionResult {
   total_cost: number | null;
   explain_output: string | null;
   error_message: string | null;
+  result_table: ResultTable | null;
+  expected_table: ResultTable | null;
   instances: InstanceResult[];
 }
 
@@ -56,6 +64,7 @@ function ChallengeDetail() {
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("execution");
+  const [expectedTable, setExpectedTable] = useState<ResultTable | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,6 +74,10 @@ function ChallengeDetail() {
       .then(setChallenge)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    apiFetch<ResultTable>(`/api/challenges/${id}/expected-output`)
+      .then(setExpectedTable)
+      .catch(() => {});
 
     apiFetch<LeaderboardRow[]>(`/api/leaderboard/challenge/${id}`)
       .then(setLeaderboard)
@@ -123,20 +136,32 @@ function ChallengeDetail() {
       </div>
       <p className="text-gray-600 mb-6">{challenge.description}</p>
 
-      {/* Schema info */}
-      {challenge.schema_sql && (
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Schema</h3>
-          {challenge.schema_tables.length > 0 && (
-            <p className="text-xs text-gray-500 mb-2">
-              Tables: {challenge.schema_tables.join(", ")}
+      {/* Schema info + Expected Output */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        {challenge.schema_sql && (
+          <div className="bg-white rounded-xl shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Schema</h3>
+            {challenge.schema_tables.length > 0 && (
+              <p className="text-xs text-gray-500 mb-2">
+                Tables: {challenge.schema_tables.join(", ")}
+              </p>
+            )}
+            <pre className="bg-gray-50 rounded p-3 font-mono text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto">
+              {challenge.schema_sql}
+            </pre>
+          </div>
+        )}
+        <div className="bg-white rounded-xl shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Expected Output</h3>
+          {expectedTable ? (
+            <QueryResultTable table={expectedTable} />
+          ) : (
+            <p className="text-sm text-gray-400">
+              Loading expected output...
             </p>
           )}
-          <pre className="bg-gray-50 rounded p-3 font-mono text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto">
-            {challenge.schema_sql}
-          </pre>
         </div>
-      )}
+      </div>
 
       {/* SQL Editor + Results */}
       <div className="grid grid-cols-2 gap-6 mb-6">
@@ -278,6 +303,61 @@ function ResultsPanel({
         </div>
       )}
       {result && <ResultBadge result={result} />}
+      {result && result.result_table && (
+        <div className="mt-3">
+          <QueryResultTable title="Your Output" table={result.result_table} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QueryResultTable({ title, table }: { title?: string; table: ResultTable }) {
+  const truncated = table.total_count > table.rows.length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        {title && (
+          <h4 className="text-sm font-semibold text-gray-700">{title}</h4>
+        )}
+        <span className="text-xs text-gray-400 ml-auto">
+          {truncated
+            ? `Showing ${table.rows.length} of ${table.total_count} rows`
+            : `${table.total_count} row${table.total_count !== 1 ? "s" : ""}`}
+        </span>
+      </div>
+      <div className="bg-white rounded-lg shadow overflow-x-auto max-h-64 overflow-y-auto">
+        <table className="min-w-full text-xs">
+          <thead className="bg-gray-50 sticky top-0">
+            <tr>
+              {table.columns.map((col) => (
+                <th
+                  key={col}
+                  className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {table.rows.map((row, i) => (
+              <tr key={i} className="hover:bg-gray-50">
+                {row.map((val, j) => (
+                  <td key={j} className="px-3 py-1.5 text-gray-700 font-mono whitespace-nowrap">
+                    {val === null ? (
+                      <span className="text-gray-300 italic">NULL</span>
+                    ) : (
+                      String(val)
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
