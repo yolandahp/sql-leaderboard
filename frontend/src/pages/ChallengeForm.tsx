@@ -8,6 +8,8 @@ interface ChallengeData {
   difficulty: string;
   schema_sql: string;
   seed_sql: string;
+  index_sql: string;
+  seed_sql_large: string;
   ground_truth_query: string;
   time_limit_ms: number;
   is_active: boolean;
@@ -19,6 +21,8 @@ const EMPTY_FORM: ChallengeData = {
   difficulty: "medium",
   schema_sql: "",
   seed_sql: "",
+  index_sql: "",
+  seed_sql_large: "",
   ground_truth_query: "",
   time_limit_ms: 5000,
   is_active: true,
@@ -171,6 +175,24 @@ function ChallengeForm() {
           mono
           placeholder="INSERT INTO customers (name) VALUES ('Alice'), ('Bob');"
           required
+        />
+
+        <TextAreaInput
+          label="Index SQL (for indexed instance)"
+          value={form.index_sql}
+          onChange={(v) => updateField("index_sql", v)}
+          rows={4}
+          mono
+          placeholder="CREATE INDEX idx_orders_customer ON orders(customer_id);&#10;CREATE INDEX idx_orders_date ON orders(order_date);"
+        />
+
+        <TextAreaInput
+          label="Large Dataset SQL (extra seed for large instance)"
+          value={form.seed_sql_large}
+          onChange={(v) => updateField("seed_sql_large", v)}
+          rows={4}
+          mono
+          placeholder="INSERT INTO orders (customer_id, amount, order_date)&#10;SELECT (random()*4+1)::int, (random()*500)::numeric(10,2), '2025-01-01'::date + (random()*365)::int&#10;FROM generate_series(1, 10000);"
         />
 
         <TextAreaInput

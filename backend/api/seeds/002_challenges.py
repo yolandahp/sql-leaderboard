@@ -42,6 +42,21 @@ CHALLENGES = [
             "  (4, 250.00, '2026-03-05'),\n"
             "  (4, 175.00, '2026-03-20');"
         ),
+        "index_sql": (
+            "CREATE INDEX idx_orders_customer_id ON orders(customer_id);\n"
+            "CREATE INDEX idx_orders_date ON orders(order_date);"
+        ),
+        "seed_sql_large": (
+            "INSERT INTO customers (name, email, region)\n"
+            "SELECT 'Customer_' || i, 'user' || i || '@example.com',\n"
+            "  (ARRAY['North','South','East','West'])[1 + (i % 4)]\n"
+            "FROM generate_series(6, 500) AS i;\n\n"
+            "INSERT INTO orders (customer_id, amount, order_date)\n"
+            "SELECT (random() * 499 + 1)::int,\n"
+            "  (random() * 500)::numeric(10,2),\n"
+            "  '2025-01-01'::date + (random() * 365)::int\n"
+            "FROM generate_series(1, 50000);"
+        ),
         "ground_truth_query": (
             "SELECT c.name AS customer_name, COUNT(o.id) AS order_count, "
             "COALESCE(SUM(o.amount), 0) AS total_spend "
@@ -101,6 +116,23 @@ CHALLENGES = [
             "  (5, 3, 60, 79.99),\n"
             "  (6, 3, 80, 29.99);"
         ),
+        "index_sql": (
+            "CREATE INDEX idx_order_items_product ON order_items(product_id);\n"
+            "CREATE INDEX idx_order_items_region ON order_items(region_id);"
+        ),
+        "seed_sql_large": (
+            "INSERT INTO products (name, price)\n"
+            "SELECT 'Product_' || i, (random() * 1000)::numeric(10,2)\n"
+            "FROM generate_series(7, 100) AS i;\n\n"
+            "INSERT INTO regions (name)\n"
+            "SELECT 'Region_' || i FROM generate_series(4, 20) AS i;\n\n"
+            "INSERT INTO order_items (product_id, region_id, quantity, unit_price)\n"
+            "SELECT (random() * 99 + 1)::int,\n"
+            "  (random() * 19 + 1)::int,\n"
+            "  (random() * 50 + 1)::int,\n"
+            "  (random() * 1000)::numeric(10,2)\n"
+            "FROM generate_series(1, 50000);"
+        ),
         "ground_truth_query": (
             "SELECT * FROM ("
             "SELECT r.name AS region, p.name AS product, "
@@ -157,6 +189,22 @@ CHALLENGES = [
             "  (2, 10, '2025-08-15'),\n"
             "  (3, 1, '2025-09-01'),\n"
             "  (5, 2, '2025-10-10');"
+        ),
+        "index_sql": (
+            "CREATE INDEX idx_orders_product_id ON orders(product_id);\n"
+            "CREATE INDEX idx_orders_date ON orders(order_date);"
+        ),
+        "seed_sql_large": (
+            "INSERT INTO products (name, category, price)\n"
+            "SELECT 'Product_' || i,\n"
+            "  (ARRAY['Electronics','Furniture','Books','Sports','Food'])[1 + (i % 5)],\n"
+            "  (random() * 500)::numeric(10,2)\n"
+            "FROM generate_series(6, 50) AS i;\n\n"
+            "INSERT INTO orders (product_id, quantity, order_date)\n"
+            "SELECT (random() * 49 + 1)::int,\n"
+            "  (random() * 20 + 1)::int,\n"
+            "  '2025-04-01'::date + (random() * 365)::int\n"
+            "FROM generate_series(1, 50000);"
         ),
         "ground_truth_query": (
             "SELECT p.category, o.order_date, "

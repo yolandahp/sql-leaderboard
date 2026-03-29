@@ -10,6 +10,8 @@ from api.models import Challenge, Submission
 from api.serializers import SubmissionCreateSerializer
 from api.services.executor import (
     ExecutionError,
+    InstanceResult,
+    execute_on_all_instances,
     execute_query,
     setup_sandbox,
     teardown_sandbox,
@@ -49,25 +51,41 @@ def submit_query(request):
         )
         return Response(_submission_response(submission))
 
-    # Set up sandbox, execute, and score
+    # Execute on all instances and score
     try:
-        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
-
-        user_result = execute_query(query, challenge.time_limit_ms)
-
-        # Run ground truth for correctness comparison
-        truth_result = execute_query(
-            challenge.ground_truth_query, challenge.time_limit_ms
+        user_result, instance_results = execute_on_all_instances(
+            query, challenge
         )
+
+        # Run ground truth on primary instance for correctness
+        setup_sandbox(challenge.schema_sql, challenge.seed_sql)
+        try:
+            truth_result = execute_query(
+                challenge.ground_truth_query, challenge.time_limit_ms
+            )
+        finally:
+            try:
+                teardown_sandbox(challenge.schema_sql)
+            except Exception:
+                logger.exception("Failed to tear down sandbox")
+
         is_correct = check_correctness(user_result, truth_result)
+
+        # Aggregate: average execution time across instances
+        avg_execution_ms = sum(
+            ir.execution_time_ms for ir in instance_results
+        ) / len(instance_results)
+        avg_planning_ms = sum(
+            ir.planning_time_ms for ir in instance_results
+        ) / len(instance_results)
 
         submission = Submission.objects.create(
             user=request.user,
             challenge=challenge,
             query=query,
             is_correct=is_correct,
-            execution_time_ms=user_result.execution_time_ms,
-            planning_time_ms=user_result.planning_time_ms,
+            execution_time_ms=avg_execution_ms,
+            planning_time_ms=avg_planning_ms,
             total_cost=user_result.total_cost,
             explain_output=json.dumps(user_result.explain_json, indent=2),
         )
@@ -77,6 +95,7 @@ def submit_query(request):
             rows=user_result.rows,
             expected_columns=truth_result.columns,
             expected_rows=truth_result.rows,
+            instance_results=instance_results,
         ))
 
     except ExecutionError as e:
@@ -87,12 +106,6 @@ def submit_query(request):
             error_message=str(e),
         )
         return Response(_submission_response(submission))
-
-    finally:
-        try:
-            teardown_sandbox(challenge.schema_sql)
-        except Exception:
-            logger.exception("Failed to tear down sandbox")
 
 
 def _serialize_value(value):
@@ -126,6 +139,7 @@ def _submission_response(
     rows: list[tuple] | None = None,
     expected_columns: list[str] | None = None,
     expected_rows: list[tuple] | None = None,
+    instance_results: list[InstanceResult] | None = None,
 ) -> dict:
     result_table = None
     if columns is not None and rows is not None:
@@ -134,6 +148,22 @@ def _submission_response(
     expected_table = None
     if expected_columns is not None and expected_rows is not None:
         expected_table = _build_table(expected_columns, expected_rows)
+
+    instances = []
+    if instance_results:
+        instances = [
+            {
+                "label": ir.label,
+                "config": ir.instance_id,
+                "execution_time_ms": ir.execution_time_ms,
+                "planning_time_ms": ir.planning_time_ms,
+                "total_cost": ir.total_cost,
+                "rows_returned": ir.rows_returned,
+                "buffer_hits": ir.buffer_hits,
+                "buffer_reads": ir.buffer_reads,
+            }
+            for ir in instance_results
+        ]
 
     return {
         "id": submission.id,
@@ -145,5 +175,5 @@ def _submission_response(
         "error_message": submission.error_message,
         "result_table": result_table,
         "expected_table": expected_table,
-        "instances": [],
+        "instances": instances,
     }

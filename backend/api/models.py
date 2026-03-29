@@ -23,6 +23,8 @@ class Challenge(models.Model):
     difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default="medium")
     schema_sql = models.TextField(help_text="DDL to set up the challenge schema")
     seed_sql = models.TextField(help_text="DML to populate data")
+    index_sql = models.TextField(blank=True, default="", help_text="CREATE INDEX statements for the indexed instance")
+    seed_sql_large = models.TextField(blank=True, default="", help_text="Extra seed SQL for the large dataset instance")
     ground_truth_query = models.TextField(help_text="Expected correct query")
     time_limit_ms = models.IntegerField(default=5000)
     is_active = models.BooleanField(default=True)

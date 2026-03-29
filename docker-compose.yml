@@ -37,6 +37,46 @@ services:
       timeout: 3s
       retries: 5
 
+  # Sandbox instance 2 — with indexes pre-created
+  sandbox-pg-indexed:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg-indexed
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    ports:
+      - "5435:5432"
+    volumes:
+      - sandbox-indexed-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Sandbox instance 3 — larger dataset
+  sandbox-pg-large:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg-large
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    ports:
+      - "5436:5432"
+    volumes:
+      - sandbox-large-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # Backend API
   backend:
     build:
@@ -49,6 +89,10 @@ services:
       DB_PASSWORD: ${APP_DB_PASSWORD}
       DB_HOST: app-db
       DB_PORT: 5432
+      SANDBOX_INSTANCES: >-
+        default|Default|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME},
+        indexed|With Indexes|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-indexed:5432/${SANDBOX_DB_NAME},
+        large|Large Dataset|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-large:5432/${SANDBOX_DB_NAME}
       SANDBOX_DATABASE_URL: postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
     ports:
@@ -57,6 +101,10 @@ services:
       app-db:
         condition: service_healthy
       sandbox-pg:
+        condition: service_healthy
+      sandbox-pg-indexed:
+        condition: service_healthy
+      sandbox-pg-large:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -80,3 +128,5 @@ services:
 volumes:
   app-db-data:
   sandbox-data:
+  sandbox-indexed-data:
+  sandbox-large-data:

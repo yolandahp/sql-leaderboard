@@ -24,7 +24,9 @@ class ChallengeDetailSerializer(ChallengeListSerializer):
 
 class ChallengeAdminSerializer(ChallengeDetailSerializer):
     class Meta(ChallengeDetailSerializer.Meta):
-        fields = ChallengeDetailSerializer.Meta.fields + ["ground_truth_query"]
+        fields = ChallengeDetailSerializer.Meta.fields + [
+            "ground_truth_query", "index_sql", "seed_sql_large",
+        ]
 
 
 class ChallengeCreateUpdateSerializer(serializers.ModelSerializer):
@@ -32,5 +34,6 @@ class ChallengeCreateUpdateSerializer(serializers.ModelSerializer):
         model = Challenge
         fields = [
             "title", "description", "difficulty", "schema_sql",
-            "seed_sql", "ground_truth_query", "time_limit_ms", "is_active",
+            "seed_sql", "index_sql", "seed_sql_large",
+            "ground_truth_query", "time_limit_ms", "is_active",
         ]

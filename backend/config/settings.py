@@ -67,6 +67,25 @@ CORS_ALLOW_CREDENTIALS = True
 # Sandbox database (used by executor service)
 SANDBOX_DATABASE_URL = os.environ.get("SANDBOX_DATABASE_URL", "")
 
+# Multiple sandbox instances: "id|label|url, id|label|url, ..."
+SANDBOX_INSTANCES = []
+_raw_instances = os.environ.get("SANDBOX_INSTANCES", "")
+if _raw_instances:
+    for entry in _raw_instances.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        parts = entry.split("|", 2)
+        if len(parts) == 3:
+            SANDBOX_INSTANCES.append({
+                "id": parts[0].strip(),
+                "label": parts[1].strip(),
+                "url": parts[2].strip(),
+            })
+# Fallback: if no instances configured, use the single SANDBOX_DATABASE_URL
+if not SANDBOX_INSTANCES and SANDBOX_DATABASE_URL:
+    SANDBOX_INSTANCES = [{"id": "default", "label": "Default", "url": SANDBOX_DATABASE_URL}]
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LANGUAGE_CODE = "en-us"
