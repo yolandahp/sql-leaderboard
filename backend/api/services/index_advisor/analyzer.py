@@ -21,27 +21,21 @@ logger = logging.getLogger(__name__)
 def _get_baseline(query: str, conn) -> BaselineResult:
     """Run the query without any advisory indexes to get baseline metrics."""
     with conn.cursor() as cur:
-        # Estimated cost
-        cur.execute(f"EXPLAIN (COSTS, FORMAT JSON) {query}")
-        explain_est = cur.fetchone()[0]
-        plan_est = explain_est[0]["Plan"]
-        estimated_cost = plan_est.get("Total Cost", 0.0)
-
-        # Actual metrics
         cur.execute(f"EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) {query}")
-        explain_actual = cur.fetchone()[0]
-        plan_actual = explain_actual[0]["Plan"]
-        actual_time = explain_actual[0].get("Execution Time", 0.0)
-        top_node_type = plan_actual.get("Node Type", "")
+        explain = cur.fetchone()[0]
+        plan = explain[0]["Plan"]
+        estimated_cost = plan.get("Total Cost", 0.0)
+        actual_time = explain[0].get("Execution Time", 0.0)
+        top_node_type = plan.get("Node Type", "")
 
-        rows = plan_actual.get("Plan Rows", 0)
+        rows = plan.get("Plan Rows", 0)
         cpu_cost = rows * 0.01
         io_cost = max(estimated_cost - cpu_cost, 0.0)
 
     return BaselineResult(
         estimated_cost=estimated_cost,
         actual_time_ms=actual_time,
-        plan_json=plan_actual,
+        plan_json=plan,
         cost_breakdown={"io_cost": round(io_cost, 2), "cpu_cost": round(cpu_cost, 2)},
         top_node_type=top_node_type,
     )
