@@ -39,12 +39,14 @@ def _resolve_column_ref(node, alias_map: dict[str, str]) -> tuple[str, str] | No
         return None
     fields = node.fields
     if len(fields) == 2:
-        qualifier = fields[0].sval
-        col = fields[1].sval
-        table = alias_map.get(qualifier)
+        if not hasattr(fields[0], "sval") or not hasattr(fields[1], "sval"):
+            return None
+        table = alias_map.get(fields[0].sval)
         if table:
-            return (table, col)
+            return (table, fields[1].sval)
     elif len(fields) == 1:
+        if not hasattr(fields[0], "sval"):
+            return None
         col = fields[0].sval
         # If there is only one table, assign to it
         tables = list(set(alias_map.values()))
