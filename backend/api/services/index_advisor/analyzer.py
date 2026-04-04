@@ -90,6 +90,11 @@ def analyze_indexes(query: str, challenge, baseline_time_ms: float = 0.0) -> dic
         conn.autocommit = True
 
         try:
+            # Set statement timeout to prevent runaway queries (6x the challenge limit)
+            timeout_ms = challenge.time_limit_ms * 6
+            with conn.cursor() as cur:
+                cur.execute("SET statement_timeout = %s", [timeout_ms])
+
             # Run ANALYZE on all tables so pg_stats is populated
             with conn.cursor() as cur:
                 cur.execute("ANALYZE")
