@@ -521,8 +521,6 @@ function InstanceCard({
   );
 }
 
-<<<<<<< HEAD
-
 function CostExplorerTab({ explainOutput }: { explainOutput: string | null }) {
   const sliders = [
     { name: "seq_page_cost", min: 0.1, max: 4.0, step: 0.1, defaultVal: 1.0, desc: "Cost of sequential disk page fetch (default: 1.0)" },
