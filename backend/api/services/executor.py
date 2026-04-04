@@ -35,6 +35,7 @@ class InstanceResult:
     rows_returned: int
     buffer_hits: int
     buffer_reads: int
+    explain_json: list
 
 
 def _parse_url(url: str) -> dict:
@@ -318,6 +319,7 @@ def execute_on_all_instances(
                 rows_returned=len(result.rows),
                 buffer_hits=buffer_hits,
                 buffer_reads=buffer_reads,
+                explain_json=result.explain_json,
             ))
         finally:
             try:

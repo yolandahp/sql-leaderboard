@@ -67,6 +67,11 @@ class Submission(models.Model):
     planning_time_ms = models.FloatField(null=True, blank=True)
     total_cost = models.FloatField(null=True, blank=True)
     explain_output = models.TextField(null=True, blank=True)
+    plan_artifacts = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Per-instance execution metadata and raw JSON plan artifacts.",
+    )
     error_message = models.TextField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 

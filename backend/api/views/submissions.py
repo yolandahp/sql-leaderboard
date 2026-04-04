@@ -14,6 +14,11 @@ from api.services.executor import (
     execute_on_all_instances,
 )
 from api.services.index_advisor import analyze_indexes
+from api.services.plan_diff import (
+    build_plan_artifacts,
+    generate_plan_diff,
+    list_comparison_targets,
+)
 from api.services.query_parser import QueryValidationError, validate_query
 from api.services.scorer import check_correctness
 
@@ -78,6 +83,7 @@ def submit_query(request):
             planning_time_ms=avg_planning_ms,
             total_cost=user_result.total_cost,
             explain_output=json.dumps(user_result.explain_json, indent=2),
+            plan_artifacts=build_plan_artifacts(user_result, instance_results),
         )
         return Response(_submission_response(
             submission,
@@ -202,3 +208,61 @@ def index_advice(request, submission_id):
             {"detail": f"Index analysis failed: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def submission_comparison_targets(request, pk):
+    current_submission = Submission.objects.filter(
+        pk=pk,
+        user=request.user,
+    ).select_related("challenge").first()
+    if current_submission is None:
+        return Response({"detail": "Submission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    candidates = list(
+        Submission.objects.filter(
+            user=request.user,
+            challenge=current_submission.challenge,
+            submitted_at__lt=current_submission.submitted_at,
+        ).order_by("-submitted_at", "-id")
+    )
+
+    return Response(list_comparison_targets(current_submission, candidates))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submission_plan_diff(request, pk):
+    current_submission = Submission.objects.filter(
+        pk=pk,
+        user=request.user,
+    ).select_related("challenge").first()
+    if current_submission is None:
+        return Response({"detail": "Submission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    target_submission_id = request.data.get("target_submission_id")
+    if not target_submission_id:
+        return Response(
+            {"detail": "target_submission_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    target_submission = Submission.objects.filter(
+        pk=target_submission_id,
+        user=request.user,
+        challenge=current_submission.challenge,
+    ).first()
+    if target_submission is None or target_submission.pk == current_submission.pk:
+        return Response(
+            {"detail": "Comparison target is invalid for this challenge."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response(
+        generate_plan_diff(
+            current_submission,
+            target_submission,
+            request.data.get("instance_id"),
+        )
+    )

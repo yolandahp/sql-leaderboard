@@ -4,6 +4,7 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
 import type { IndexAdviceResult } from "../components/index-advisor/types";
+import PlanDiffPanel from "../components/PlanDiffPanel";
 
 interface ChallengeInfo {
   id: number;
@@ -225,7 +226,9 @@ function ChallengeDetail() {
           {activeTab === "execution" && (
             <ExecutionTab result={result} cacheRatio={cacheRatio} />
           )}
-          {activeTab === "plan-diff" && <PlanDiffTab />}
+          {activeTab === "plan-diff" && (
+            <PlanDiffPanel challengeId={challenge.id} result={result} />
+          )}
           {activeTab === "index-advisor" && (
             <IndexAdvisorTab
               advice={indexAdvice}
@@ -518,19 +521,7 @@ function InstanceCard({
   );
 }
 
-function PlanDiffTab() {
-  return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h4 className="font-semibold text-gray-900 mb-4">
-        Plan Diff: Compare Submissions
-      </h4>
-      <p className="text-sm text-gray-500">
-        Plan diff analysis will be available once you have multiple submissions
-        for this challenge.
-      </p>
-    </div>
-  );
-}
+<<<<<<< HEAD
 
 function CostExplorerTab({ explainOutput }: { explainOutput: string | null }) {
   const sliders = [
