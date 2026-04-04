@@ -22,6 +22,8 @@ urlpatterns = [
     # Submissions
     path("submissions", views.submit_query),
     path("submissions/<int:submission_id>/index-advice", views.index_advice),
+    path("submissions/<int:pk>/comparison-targets", views.submission_comparison_targets),
+    path("submissions/<int:pk>/plan-diff", views.submission_plan_diff),
 
     # Leaderboard
     path("leaderboard", views.leaderboard),
