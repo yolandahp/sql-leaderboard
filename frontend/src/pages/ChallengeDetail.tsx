@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
+import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
+import type { IndexAdviceResult } from "../components/index-advisor/types";
 
 interface ChallengeInfo {
   id: number;
@@ -67,6 +69,9 @@ function ChallengeDetail() {
   const [expectedTable, setExpectedTable] = useState<ResultTable | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [indexAdvice, setIndexAdvice] = useState<IndexAdviceResult | null>(null);
+  const [analyzingIndexes, setAnalyzingIndexes] = useState(false);
+  const [indexError, setIndexError] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +94,8 @@ function ChallengeDetail() {
     setSubmitting(true);
     setError("");
     setResult(null);
+    setIndexAdvice(null);
+    setIndexError("");
     try {
       const res = await apiFetch<SubmissionResult>("/api/submissions", {
         method: "POST",
@@ -99,6 +106,24 @@ function ChallengeDetail() {
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAnalyzeIndexes = async () => {
+    if (!result) return;
+    setAnalyzingIndexes(true);
+    setIndexError("");
+    setIndexAdvice(null);
+    try {
+      const res = await apiFetch<IndexAdviceResult>(
+        `/api/submissions/${result.id}/index-advice`,
+        { method: "POST" },
+      );
+      setIndexAdvice(res);
+    } catch (err: unknown) {
+      setIndexError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
+      setAnalyzingIndexes(false);
     }
   };
 
@@ -201,7 +226,14 @@ function ChallengeDetail() {
             <ExecutionTab result={result} cacheRatio={cacheRatio} />
           )}
           {activeTab === "plan-diff" && <PlanDiffTab />}
-          {activeTab === "index-advisor" && <IndexAdvisorTab />}
+          {activeTab === "index-advisor" && (
+            <IndexAdvisorTab
+              advice={indexAdvice}
+              loading={analyzingIndexes}
+              error={indexError}
+              onAnalyze={handleAnalyzeIndexes}
+            />
+          )}
           {activeTab === "cost-explorer" && (
             <CostExplorerTab explainOutput={result.explain_output} />
           )}
@@ -495,23 +527,6 @@ function PlanDiffTab() {
       <p className="text-sm text-gray-500">
         Plan diff analysis will be available once you have multiple submissions
         for this challenge.
-      </p>
-    </div>
-  );
-}
-
-function IndexAdvisorTab() {
-  return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h4 className="font-semibold text-gray-900 mb-1">
-        HypoPG Index Recommendations
-      </h4>
-      <p className="text-sm text-gray-500 mb-4">
-        Hypothetical indexes are tested without actually creating them. Cost
-        estimates are from the PostgreSQL planner.
-      </p>
-      <p className="text-sm text-gray-400">
-        Index recommendations will appear here after query analysis.
       </p>
     </div>
   );
