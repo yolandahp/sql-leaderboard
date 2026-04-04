@@ -1,6 +1,7 @@
 from ..executor import _extract_buffer_stats, run_explain_averaged  # noqa: F401
 
 
+
 def _find_scan_nodes(plan: dict) -> list[dict]:
     """Recursively find scan-type nodes in a plan tree."""
     results = []
