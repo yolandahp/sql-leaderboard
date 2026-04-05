@@ -13,6 +13,7 @@ from api.services.executor import (
     InstanceResult,
     execute_on_all_instances,
 )
+from api.services.index_advisor import analyze_indexes
 from api.services.query_parser import QueryValidationError, validate_query
 from api.services.scorer import check_correctness
 
@@ -166,3 +167,38 @@ def _submission_response(
         "expected_table": expected_table,
         "instances": instances,
     }
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def index_advice(request, submission_id):
+    """POST /api/submissions/<id>/index-advice — run the index advisor pipeline."""
+    try:
+        submission = Submission.objects.select_related("challenge").get(
+            pk=submission_id, user=request.user,
+        )
+    except Submission.DoesNotExist:
+        return Response(
+            {"detail": "Submission not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if submission.error_message:
+        return Response(
+            {"detail": "Cannot analyze a failed submission."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        result = analyze_indexes(
+            submission.query,
+            submission.challenge,
+            submission.execution_time_ms or 0.0,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.exception("Index advisor failed for submission %s", submission_id)
+        return Response(
+            {"detail": f"Index analysis failed: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
