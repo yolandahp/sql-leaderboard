@@ -82,6 +82,7 @@ function CandidateRow({
         </td>
         <td className="px-4 py-3 text-right font-mono">{rec.hypothetical.estimated_cost.toLocaleString()}</td>
         <td className="px-4 py-3 text-right font-mono">{rec.validated?.actual_cost?.toLocaleString() ?? "\u2014"}</td>
+        <td className="px-4 py-3 text-right font-mono">{rec.validated ? `${rec.validated.actual_time_ms.toFixed(2)} ms` : "\u2014"}</td>
         <td className="px-4 py-3 text-right font-semibold text-green-600">
           {rec.hypothetical.cost_reduction_pct > 0 ? "-" : ""}{rec.hypothetical.cost_reduction_pct.toFixed(1)}%
         </td>
@@ -98,7 +99,7 @@ function CandidateRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={10} className="px-4 py-4 bg-gray-50">
+          <td colSpan={11} className="px-4 py-4 bg-gray-50">
             <CandidateDetail rec={rec} baseline={baseline} />
           </td>
         </tr>
@@ -222,6 +223,7 @@ function CandidateTable({
               <Th align="right" tip="Number of distinct values in the column (from pg_stats). High n_distinct relative to table size means the column is selective — good for B-tree indexes.">n_distinct</Th>
               <Th align="right" tip="Estimated query cost with this hypothetical index, as reported by PostgreSQL's EXPLAIN via HypoPG (no actual execution).">Est. Cost</Th>
               <Th align="right" tip="Actual query cost measured by EXPLAIN ANALYZE after creating a real index. Only computed for top candidates above the cost reduction threshold.">Act. Cost</Th>
+              <Th align="right" tip="Actual execution time measured by EXPLAIN ANALYZE after creating a real index. Only computed for top candidates above the cost reduction threshold.">Act. Time</Th>
               <Th align="right" tip="Estimated cost reduction vs baseline (no indexes). Computed from HypoPG's hypothetical index estimate.">Est. Delta</Th>
               <Th align="right" tip="Actual cost reduction vs baseline, measured with a real index via EXPLAIN ANALYZE. Compares to how much HypoPG predicted.">Act. Delta</Th>
               <Th align="right" tip="HypoPG estimation error: (estimated - actual) / actual. Positive means HypoPG overestimated the cost, negative means it underestimated. Measures how trustworthy HypoPG's predictions are.">Est. Error</Th>
