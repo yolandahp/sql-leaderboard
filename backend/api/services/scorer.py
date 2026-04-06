@@ -46,8 +46,8 @@ def _normalize_rows(rows: list[tuple]) -> list[tuple]:
 def _normalize_value(value):
     if value is None:
         return None
-    if isinstance(value, (Decimal, float)):
-        return Decimal(str(value)).normalize()
+    if isinstance(value, (Decimal, float, int)):
+        return round(Decimal(str(value)), 6).normalize()
     if isinstance(value, (date, datetime)):
         return str(value)
     return value

@@ -153,16 +153,6 @@ function Home() {
             </p>
           </div>
           <div className="bg-white rounded-xl shadow p-6">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-purple-50 text-purple-700">
-              Cost Model Explorer
-            </span>
-            <p className="text-gray-600 text-sm">
-              Adjust PostgreSQL optimizer parameters (seq_page_cost,
-              random_page_cost, etc.) with interactive sliders and see how plans
-              change.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-orange-50 text-orange-700">
               Multi-Instance Testing
             </span>

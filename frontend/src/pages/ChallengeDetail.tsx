@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
@@ -58,7 +58,7 @@ interface LeaderboardRow {
   last_submitted: string;
 }
 
-type TabId = "execution" | "plan-diff" | "index-advisor" | "cost-explorer";
+type TabId = "execution" | "plan-diff" | "index-advisor";
 
 function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -142,7 +142,6 @@ function ChallengeDetail() {
     { id: "execution", label: "Execution Details" },
     { id: "plan-diff", label: "Plan Diff" },
     { id: "index-advisor", label: "Index Advisor" },
-    { id: "cost-explorer", label: "Cost Explorer" },
   ];
 
   return (
@@ -239,9 +238,6 @@ function ChallengeDetail() {
               onAnalyze={handleAnalyzeIndexes}
             />
           )}
-          {activeTab === "cost-explorer" && (
-            <CostExplorerTab explainOutput={result.explain_output} />
-          )}
         </div>
       )}
 
@@ -270,6 +266,26 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   );
 }
 
+function ElapsedTimer({ running }: { running: boolean }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!running) {
+      setElapsed(0);
+      return;
+    }
+    startRef.current = Date.now();
+    const interval = setInterval(() => {
+      setElapsed(((Date.now() - startRef.current) / 1000));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [running]);
+
+  if (!running) return null;
+  return <span className="ml-2 text-sm text-gray-300">{elapsed.toFixed(1)}s</span>;
+}
+
 function SqlEditor({
   query,
   onQueryChange,
@@ -295,14 +311,26 @@ function SqlEditor({
         spellCheck={false}
         placeholder="SELECT ..."
       />
-      <div className="flex gap-3 mt-3">
+      <div className="flex gap-3 mt-3 items-center">
         <button
           onClick={onSubmit}
           disabled={submitting || !isLoggedIn}
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2"
         >
+          {submitting && (
+            <svg
+              className="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
           {submitting ? "Running..." : "Submit Query"}
         </button>
+        <ElapsedTimer running={submitting} />
       </div>
       {!isLoggedIn && (
         <p className="text-xs text-gray-400 mt-2">
@@ -515,108 +543,6 @@ function InstanceCard({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function CostExplorerTab({ explainOutput }: { explainOutput: string | null }) {
-  const sliders = [
-    { name: "seq_page_cost", min: 0.1, max: 4.0, step: 0.1, defaultVal: 1.0, desc: "Cost of sequential disk page fetch (default: 1.0)" },
-    { name: "random_page_cost", min: 1.0, max: 10.0, step: 0.1, defaultVal: 4.0, desc: "Cost of random disk page fetch (default: 4.0, SSD: ~1.1)" },
-    { name: "cpu_tuple_cost", min: 0.001, max: 0.1, step: 0.001, defaultVal: 0.01, desc: "Cost of processing each row (default: 0.01)" },
-    { name: "effective_cache_size", min: 0.25, max: 16, step: 0.25, defaultVal: 4, desc: "Planner's assumption of available cache (default: 4 GB)" },
-  ];
-
-  return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h4 className="font-semibold text-gray-900 mb-1">Cost Model Explorer</h4>
-      <p className="text-sm text-gray-500 mb-6">
-        Adjust PostgreSQL optimizer cost parameters and see how the query plan
-        changes.
-      </p>
-      <div className="grid grid-cols-2 gap-8">
-        <div className="space-y-5">
-          {sliders.map((s) => (
-            <CostSlider key={s.name} {...s} />
-          ))}
-          <button
-            className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition mt-2"
-            disabled
-          >
-            Re-run EXPLAIN
-          </button>
-        </div>
-        <div>
-          <h5 className="font-semibold text-gray-700 text-sm mb-3">
-            Estimated Plan (with current settings)
-          </h5>
-          {explainOutput ? (
-            <pre className="bg-gray-50 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap text-gray-700 mb-4">
-              {explainOutput}
-            </pre>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Plan will appear here after re-running EXPLAIN with adjusted
-              parameters.
-            </p>
-          )}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <h5 className="font-semibold text-amber-800 text-sm mb-1">
-              Try This
-            </h5>
-            <p className="text-sm text-amber-700">
-              Set{" "}
-              <code className="bg-amber-100 px-1 rounded">
-                random_page_cost = 1.1
-              </code>{" "}
-              (simulating SSD) -- the planner may switch from Seq Scan to Index
-              Scan if a suitable index exists.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CostSlider({
-  name,
-  min,
-  max,
-  step,
-  defaultVal,
-  desc,
-}: {
-  name: string;
-  min: number;
-  max: number;
-  step: number;
-  defaultVal: number;
-  desc: string;
-}) {
-  const [value, setValue] = useState(defaultVal);
-  const precision = step < 0.01 ? 3 : step < 1 ? 1 : 0;
-  const display =
-    name === "effective_cache_size" ? `${value} GB` : value.toFixed(precision);
-
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-700 font-medium" style={{ minWidth: 160 }}>
-          {name}
-        </span>
-        <span className="font-mono text-indigo-600">{display}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => setValue(parseFloat(e.target.value))}
-        className="w-full accent-indigo-600"
-      />
-      <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
     </div>
   );
 }
