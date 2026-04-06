@@ -63,8 +63,8 @@ def generate_plan_diff(submission_a, submission_b, instance_id: str | None = Non
     artifact_a = get_instance_artifact(submission_a, instance_id)
     artifact_b = get_instance_artifact(submission_b, instance_id)
     response = {
-        "current_submission": summarize_submission(submission_a),
-        "target_submission": summarize_submission(submission_b),
+        "current_submission": summarize_submission(submission_a, instance_id),
+        "target_submission": summarize_submission(submission_b, instance_id),
         "instance": resolve_instance_option(submission_a, instance_id),
         "current_submission_incorrect": not submission_a.is_correct,
     }
@@ -101,8 +101,8 @@ def generate_plan_diff(submission_a, submission_b, instance_id: str | None = Non
         pair["explanation"] = pair_summary["explanation"]
         matched_pairs.append(pair)
 
-    summary = build_summary(submission_a, submission_b, matched_pairs)
-    insights = build_insights(submission_a, submission_b, matched_pairs)
+    summary = build_summary(submission_a, submission_b, matched_pairs, instance_id)
+    insights = build_insights(submission_a, submission_b, matched_pairs, instance_id)
 
     response["status"] = "ready"
     response["summary"] = summary

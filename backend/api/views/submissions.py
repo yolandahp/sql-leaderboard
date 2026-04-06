@@ -157,6 +157,7 @@ def _submission_response(
                 "rows_returned": ir.rows_returned,
                 "buffer_hits": ir.buffer_hits,
                 "buffer_reads": ir.buffer_reads,
+                "explain_output": json.dumps(ir.explain_json, indent=2),
             }
             for ir in instance_results
         ]

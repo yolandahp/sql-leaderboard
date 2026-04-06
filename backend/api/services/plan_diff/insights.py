@@ -40,9 +40,13 @@ def summarize_pair(node_a: dict[str, Any], node_b: dict[str, Any]) -> dict[str, 
     return {"delta": delta, "explanation": ", ".join(fragments)}
 
 
-def build_summary(submission_a, submission_b, matches: list[dict[str, Any]]) -> dict[str, Any]:
-    time_a = submission_a.execution_time_ms
-    time_b = submission_b.execution_time_ms
+def build_summary(
+    submission_a, submission_b, matches: list[dict[str, Any]], instance_id: str | None = None,
+) -> dict[str, Any]:
+    summary_a = summarize_submission(submission_a, instance_id)
+    summary_b = summarize_submission(submission_b, instance_id)
+    time_a = summary_a["execution_time_ms"]
+    time_b = summary_b["execution_time_ms"]
     verdict = "Both submissions have comparable runtime characteristics."
 
     if time_a is not None and time_b is not None and time_a != time_b:
@@ -63,14 +67,16 @@ def build_summary(submission_a, submission_b, matches: list[dict[str, Any]]) -> 
     )
 
     return {
-        "submission_a": summarize_submission(submission_a),
-        "submission_b": summarize_submission(submission_b),
+        "submission_a": summary_a,
+        "submission_b": summary_b,
         "verdict": verdict,
         "main_difference": structural_change[0].upper() + structural_change[1:],
     }
 
 
-def build_insights(submission_a, submission_b, matches: list[dict[str, Any]]) -> dict[str, Any]:
+def build_insights(
+    submission_a, submission_b, matches: list[dict[str, Any]], instance_id: str | None = None,
+) -> dict[str, Any]:
     structural_changes = [
         pair["explanation"]
         for pair in matches
@@ -118,8 +124,8 @@ def build_insights(submission_a, submission_b, matches: list[dict[str, Any]]) ->
         "row_reduction_summary": (
             row_shift["explanation"] if row_shift else "No significant row-count change detected."
         ),
-        "current_execution_time_ms": submission_a.execution_time_ms,
-        "target_execution_time_ms": submission_b.execution_time_ms,
+        "current_execution_time_ms": summarize_submission(submission_a, instance_id)["execution_time_ms"],
+        "target_execution_time_ms": summarize_submission(submission_b, instance_id)["execution_time_ms"],
     }
 
 

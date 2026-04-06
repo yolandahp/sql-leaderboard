@@ -31,16 +31,27 @@ def build_plan_artifacts(primary_result, instance_results: list) -> dict[str, An
     }
 
 
-def summarize_submission(submission) -> dict[str, Any]:
+def summarize_submission(submission, instance_id: str | None = None) -> dict[str, Any]:
     artifacts = submission.plan_artifacts or {}
     instances = artifacts.get("instances") or []
+
+    execution_time_ms = submission.execution_time_ms
+    planning_time_ms = submission.planning_time_ms
+
+    if instance_id:
+        for inst in instances:
+            if inst["instance_id"] == instance_id:
+                execution_time_ms = inst.get("execution_time_ms", execution_time_ms)
+                planning_time_ms = inst.get("planning_time_ms", planning_time_ms)
+                break
+
     return {
         "id": submission.id,
         "submitted_at": submission.submitted_at.isoformat(),
         "label": f"Submission #{submission.id}",
         "is_correct": submission.is_correct,
-        "execution_time_ms": submission.execution_time_ms,
-        "planning_time_ms": submission.planning_time_ms,
+        "execution_time_ms": execution_time_ms,
+        "planning_time_ms": planning_time_ms,
         "has_plan": bool(available_instance_ids(submission)),
         "instance_ids": available_instance_ids(submission),
         "instance_count": len(instances),

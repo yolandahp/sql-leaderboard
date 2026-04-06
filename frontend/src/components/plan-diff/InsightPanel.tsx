@@ -14,36 +14,50 @@ function InsightPanel({
   nodeMapA: Map<string, PlanNode>;
 }) {
   return (
-    <div className="bg-white rounded-xl shadow p-5 space-y-5">
-      <InsightSection title="Top 3 insights" items={insights.top_insights} />
-      <InsightSection title="Structural changes" items={insights.structural_changes} />
-      <MetricCallout
-        label="Biggest time-saving node"
-        value={findNodeLabel(nodeMapA, insights.biggest_time_saving_node)}
-      />
-      <MetricCallout
-        label="Biggest buffer improvement"
-        value={findNodeLabel(nodeMapA, insights.biggest_buffer_improvement_node)}
-      />
-      <MetricCallout
-        label="Row reduction summary"
-        value={insights.row_reduction_summary}
-      />
+    <div className="bg-white rounded-xl shadow p-5">
+      <h5 className="text-sm font-semibold text-gray-900 mb-3">Insights</h5>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <InsightSection title="Top changes" items={insights.top_insights} />
+        <InsightSection
+          title="Structural changes"
+          items={insights.structural_changes}
+        />
+        <div className="space-y-3">
+          <MetricCallout
+            label="Biggest time-saving node"
+            value={findNodeLabel(nodeMapA, insights.biggest_time_saving_node)}
+          />
+          <MetricCallout
+            label="Biggest buffer improvement"
+            value={findNodeLabel(
+              nodeMapA,
+              insights.biggest_buffer_improvement_node,
+            )}
+          />
+          <MetricCallout
+            label="Row reduction summary"
+            value={insights.row_reduction_summary}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 function InsightSection({ title, items }: { title: string; items: string[] }) {
   return (
-    <div>
-      <h5 className="text-sm font-semibold text-gray-900 mb-2">{title}</h5>
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div key={`${title}-${index}`} className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
-            {item}
-          </div>
-        ))}
-      </div>
+    <div className="space-y-2">
+      <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">
+        {title}
+      </p>
+      {items.map((item, index) => (
+        <div
+          key={`${title}-${index}`}
+          className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700"
+        >
+          {item}
+        </div>
+      ))}
     </div>
   );
 }
@@ -51,8 +65,10 @@ function InsightSection({ title, items }: { title: string; items: string[] }) {
 function MetricCallout({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-gray-200 p-3">
-      <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</p>
-      <p className="text-sm text-gray-800">{value}</p>
+      <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+        {label}
+      </p>
+      <p className="text-sm text-gray-800 font-medium">{value}</p>
     </div>
   );
 }
