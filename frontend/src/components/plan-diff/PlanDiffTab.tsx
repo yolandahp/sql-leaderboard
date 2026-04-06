@@ -186,9 +186,7 @@ function PlanDiffTab({
             <>
               <SummaryStrip summary={diff.summary} />
 
-              <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr_1fr]" data-testid="diff-layout">
-                <InsightPanel insights={diff.insights} nodeMapA={nodeMapA} />
-
+              <div className="grid gap-6 lg:grid-cols-2" data-testid="diff-layout">
                 <PlanTreeCard
                   title="Plan A"
                   subtitle="Current submission"
@@ -213,6 +211,8 @@ function PlanDiffTab({
                 nodeMapA={nodeMapA}
                 nodeMapB={nodeMapB}
               />
+
+              <InsightPanel insights={diff.insights} nodeMapA={nodeMapA} />
             </>
           )}
         </>
