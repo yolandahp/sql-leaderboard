@@ -102,11 +102,11 @@ CHALLENGE = {
         "  (15, 5, 1, 49.99, 'completed', '2024-08-10');"
     ),
     "index_sql": (
-        "CREATE INDEX idx_orders_customer_id ON orders(customer_id);\n"
-        "CREATE INDEX idx_orders_status ON orders(status);\n"
-        "CREATE INDEX idx_orders_date ON orders(order_date);"
+        "CREATE INDEX idx_orders_status_date ON orders(status, order_date);\n"
+        "CREATE INDEX idx_orders_customer_id ON orders(customer_id);"
     ),
     "seed_sql_large": (
+        "SELECT setseed(0.42);\n\n"
         "-- 2000 customers\n"
         "INSERT INTO customers (name, email, region, segment, created_at)\n"
         "SELECT 'Customer_' || i,\n"

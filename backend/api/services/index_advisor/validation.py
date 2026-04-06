@@ -1,7 +1,7 @@
 import logging
 
 from .types import ScreenedCandidate, ValidatedCandidate, COST_THRESHOLD_PCT, TOP_N_VALIDATE
-from .plan_utils import _extract_buffer_stats
+from .plan_utils import _extract_buffer_stats, run_explain_averaged
 
 logger = logging.getLogger(__name__)
 
@@ -25,24 +25,25 @@ def validate_candidates(
             with conn.cursor() as cur:
                 cur.execute(create_ddl)
                 cur.execute(f"ANALYZE {sc.candidate.table}")
-                cur.execute(f"EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) {query}")
-                explain = cur.fetchone()[0]
-                plan = explain[0]["Plan"]
 
-                actual_cost = plan.get("Total Cost", 0.0)
-                actual_time = explain[0].get("Execution Time", 0.0)
-                buf_hits, buf_reads = _extract_buffer_stats(plan)
+            explain = run_explain_averaged(query, conn)
+            plan = explain[0]["Plan"]
 
-                # Estimation error: (hypothetical - actual) / actual * 100
-                # Positive = HypoPG overestimated, Negative = HypoPG underestimated
-                est = sc.estimated_cost
-                err_pct = ((est - actual_cost) / actual_cost * 100) if actual_cost > 0 else 0.0
+            actual_cost = plan.get("Total Cost", 0.0)
+            actual_time = explain[0].get("Execution Time", 0.0)
+            buf_hits, buf_reads = _extract_buffer_stats(plan)
 
-                # Cost breakdown heuristic
-                rows = plan.get("Plan Rows", 0)
-                cpu_cost = rows * 0.01
-                io_cost = max(actual_cost - cpu_cost, 0.0)
+            # Estimation error: (hypothetical - actual) / actual * 100
+            # Positive = HypoPG overestimated, Negative = HypoPG underestimated
+            est = sc.estimated_cost
+            err_pct = ((est - actual_cost) / actual_cost * 100) if actual_cost > 0 else 0.0
 
+            # Cost breakdown heuristic
+            rows = plan.get("Plan Rows", 0)
+            cpu_cost = rows * 0.01
+            io_cost = max(actual_cost - cpu_cost, 0.0)
+
+            with conn.cursor() as cur:
                 cur.execute(f"DROP INDEX IF EXISTS {idx_name}")
 
             validated.append(ValidatedCandidate(

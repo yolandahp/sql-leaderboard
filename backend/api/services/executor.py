@@ -8,6 +8,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+TIMING_RUNS = 10
+
 
 class ExecutionError(Exception):
     pass
@@ -164,7 +166,11 @@ def teardown_sandbox(schema_sql: str, url: str | None = None) -> None:
 
 
 def execute_query(query: str, time_limit_ms: int, url: str | None = None) -> ExecutionResult:
-    """Execute a user query in a sandbox instance inside a read-only transaction."""
+    """Execute a user query in a sandbox instance inside a read-only transaction.
+
+    Fetches result rows for correctness checking and runs EXPLAIN ANALYZE
+    multiple times for averaged timing metrics.
+    """
     url = url or settings.SANDBOX_DATABASE_URL
     conn = _connect(url)
     try:
@@ -172,22 +178,21 @@ def execute_query(query: str, time_limit_ms: int, url: str | None = None) -> Exe
         with conn.cursor() as cur:
             cur.execute(f"SET LOCAL statement_timeout = {time_limit_ms}")
 
-            explain_sql = (
-                "EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) " + query
-            )
-            cur.execute(explain_sql)
-            explain_json = cur.fetchone()[0]
-
-            plan = explain_json[0]["Plan"]
-            planning_time = explain_json[0].get("Planning Time", 0.0)
-            execution_time = explain_json[0].get("Execution Time", 0.0)
-            total_cost = plan.get("Total Cost", 0.0)
-
             cur.execute(query)
             columns = [desc[0] for desc in cur.description]
             rows = cur.fetchall()
 
         conn.rollback()
+
+        # Averaged timing from EXPLAIN ANALYZE
+        explain_json = run_explain_averaged(query, conn)
+        conn.rollback()
+
+        plan = explain_json[0]["Plan"]
+        execution_time = explain_json[0]["Execution Time"]
+        planning_time = explain_json[0]["Planning Time"]
+        total_cost = plan.get("Total Cost", 0.0)
+
         return ExecutionResult(
             rows=rows,
             columns=columns,
@@ -225,6 +230,26 @@ def _extract_buffer_stats(plan: dict) -> tuple[int, int]:
     return hits, reads
 
 
+def run_explain_averaged(query: str, conn, runs: int = TIMING_RUNS) -> list:
+    """Run EXPLAIN ANALYZE multiple times and return result with averaged timing."""
+    exec_times = []
+    plan_times = []
+    explain = None
+    for _ in range(runs):
+        with conn.cursor() as cur:
+            cur.execute(f"EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) {query}")
+            explain = cur.fetchone()[0]
+            exec_times.append(explain[0].get("Execution Time", 0.0))
+            plan_times.append(explain[0].get("Planning Time", 0.0))
+
+    exec_times = exec_times[1:]
+    plan_times = plan_times[1:]
+
+    explain[0]["Execution Time"] = sum(exec_times) / len(exec_times)
+    explain[0]["Planning Time"] = sum(plan_times) / len(plan_times)
+    return explain
+
+
 def _get_extra_sql(instance_id: str, challenge) -> tuple[str, str]:
     """Return (extra_seed_sql, extra_setup_sql) for a specific instance."""
     index_sql = getattr(challenge, "index_sql", "") or ""
@@ -233,10 +258,13 @@ def _get_extra_sql(instance_id: str, challenge) -> tuple[str, str]:
     extra_seed = ""
     extra_setup = ""
 
-    if instance_id == "indexed" and index_sql:
-        extra_setup = index_sql
-    elif instance_id == "large" and seed_sql_large:
+    if instance_id == "large" and seed_sql_large:
         extra_seed = seed_sql_large
+    elif instance_id == "large-indexed":
+        if seed_sql_large:
+            extra_seed = seed_sql_large
+        if index_sql:
+            extra_setup = index_sql
 
     return extra_seed, extra_setup
 
@@ -264,6 +292,15 @@ def execute_on_all_instances(
             if _has_sql_content(extra_setup):
                 setup_sandbox("", extra_setup, url=url)
 
+            # Update planner statistics so PostgreSQL chooses optimal plans
+            analyze_conn = _connect(url)
+            try:
+                analyze_conn.autocommit = True
+                with analyze_conn.cursor() as cur:
+                    cur.execute("ANALYZE")
+            finally:
+                analyze_conn.close()
+
             result = execute_query(query, challenge.time_limit_ms, url=url)
 
             if primary_result is None:
@@ -275,8 +312,8 @@ def execute_on_all_instances(
             instance_results.append(InstanceResult(
                 instance_id=inst["id"],
                 label=inst["label"],
-                execution_time_ms=result.execution_time_ms,
-                planning_time_ms=result.planning_time_ms,
+                execution_time_ms=round(result.execution_time_ms, 3),
+                planning_time_ms=round(result.planning_time_ms, 3),
                 total_cost=result.total_cost,
                 rows_returned=len(result.rows),
                 buffer_hits=buffer_hits,
