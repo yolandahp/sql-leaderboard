@@ -29,6 +29,7 @@ interface SubmissionResult {
   is_correct: boolean;
   execution_time_ms: number | null;
   planning_time_ms: number | null;
+  total_time_ms: number | null;
   total_cost: number | null;
   explain_output: string | null;
   error_message: string | null;
@@ -52,13 +53,24 @@ interface InstanceResult {
 interface LeaderboardRow {
   rank: number;
   username: string;
-  avg_execution_time_ms: number;
-  planning_time_ms: number;
+  best_total_time_ms: number;
+  best_execution_time_ms: number;
+  best_planning_time_ms: number;
   submission_count: number;
   last_submitted: string;
 }
 
-type TabId = "execution" | "plan-diff" | "index-advisor";
+interface MySubmission {
+  id: number;
+  challenge_id: number;
+  is_correct: boolean;
+  execution_time_ms: number | null;
+  planning_time_ms: number | null;
+  error_message: string | null;
+  submitted_at: string;
+}
+
+type TabId = "execution" | "plan-diff" | "index-advisor" | "leaderboard";
 
 function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -68,10 +80,12 @@ function ChallengeDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<TabId>("execution");
+  const [activeTab, setActiveTab] = useState<TabId>("leaderboard");
   const [expectedTable, setExpectedTable] = useState<ResultTable | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
   const [indexAdvice, setIndexAdvice] = useState<IndexAdviceResult | null>(null);
   const [analyzingIndexes, setAnalyzingIndexes] = useState(false);
   const [indexError, setIndexError] = useState("");
@@ -90,7 +104,13 @@ function ChallengeDetail() {
     apiFetch<LeaderboardRow[]>(`/api/leaderboard/challenge/${id}`)
       .then(setLeaderboard)
       .catch(() => {});
-  }, [id]);
+
+    if (user) {
+      apiFetch<MySubmission[]>("/api/auth/me/submissions")
+        .then((all) => setMySubmissions(all.filter((s) => s.challenge_id === Number(id))))
+        .catch(() => {});
+    }
+  }, [id, user]);
 
   const handleSubmit = async () => {
     if (!query.trim() || !id) return;
@@ -105,6 +125,13 @@ function ChallengeDetail() {
         body: JSON.stringify({ challenge_id: Number(id), query }),
       });
       setResult(res);
+      setSelectedSubmissionId(res.id);
+      apiFetch<MySubmission[]>("/api/auth/me/submissions")
+        .then((all) => setMySubmissions(all.filter((s) => s.challenge_id === Number(id))))
+        .catch(() => {});
+      apiFetch<LeaderboardRow[]>(`/api/leaderboard/challenge/${id}`)
+        .then(setLeaderboard)
+        .catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
@@ -130,6 +157,22 @@ function ChallengeDetail() {
     }
   };
 
+  const handleSelectSubmission = async (submissionId: number) => {
+    setSelectedSubmissionId(submissionId);
+    setIndexAdvice(null);
+    setIndexError("");
+    try {
+      const res = await apiFetch<SubmissionResult & { query: string }>(
+        `/api/submissions/${submissionId}`,
+      );
+      setResult(res);
+      if (res.query) setQuery(res.query);
+      setActiveTab("execution");
+    } catch {
+      setError("Failed to load submission details.");
+    }
+  };
+
   if (loading) return <p className="text-gray-500">Loading...</p>;
   if (!challenge) return <p className="text-gray-500">Challenge not found.</p>;
 
@@ -142,6 +185,7 @@ function ChallengeDetail() {
     { id: "execution", label: "Execution Details" },
     { id: "plan-diff", label: "Plan Diff" },
     { id: "index-advisor", label: "Index Advisor" },
+    { id: "leaderboard", label: "Standings" },
   ];
 
   return (
@@ -203,12 +247,11 @@ function ChallengeDetail() {
         <ResultsPanel result={result} error={error} />
       </div>
 
-      {/* Tabs for advanced features */}
-      {result && !result.error_message && (
-        <div>
-          <div className="border-b border-gray-200 mb-6">
-            <div className="flex gap-6">
-              {tabs.map((tab) => (
+      {/* Tabs */}
+      <div>
+        <div className="border-b border-gray-200 mb-6">
+          <div className="flex gap-6">
+            {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -221,30 +264,45 @@ function ChallengeDetail() {
                   {tab.label}
                 </button>
               ))}
-            </div>
           </div>
+        </div>
 
-          {activeTab === "execution" && (
+        {activeTab === "leaderboard" && (
+          <LeaderboardPanel
+            leaderboard={leaderboard}
+            mySubmissions={mySubmissions}
+            isLoggedIn={!!user}
+            selectedSubmissionId={selectedSubmissionId}
+            onSelectSubmission={handleSelectSubmission}
+          />
+        )}
+        {activeTab === "execution" && (
+          result && !result.error_message ? (
             <ExecutionTab result={result} cacheRatio={cacheRatio} />
-          )}
-          {activeTab === "plan-diff" && (
+          ) : (
+            <p className="text-gray-500 text-sm">Submit a query to see execution details.</p>
+          )
+        )}
+        {activeTab === "plan-diff" && (
+          result && !result.error_message ? (
             <PlanDiffTab challengeId={challenge.id} result={result} />
-          )}
-          {activeTab === "index-advisor" && (
+          ) : (
+            <p className="text-gray-500 text-sm">Submit a query to see plan diff.</p>
+          )
+        )}
+        {activeTab === "index-advisor" && (
+          result && !result.error_message ? (
             <IndexAdvisorTab
               advice={indexAdvice}
               loading={analyzingIndexes}
               error={indexError}
               onAnalyze={handleAnalyzeIndexes}
             />
-          )}
-        </div>
-      )}
-
-      {/* Challenge Leaderboard */}
-      {leaderboard.length > 0 && (
-        <ChallengeLeaderboard entries={leaderboard} />
-      )}
+          ) : (
+            <p className="text-gray-500 text-sm">Submit a query to see index advice.</p>
+          )
+        )}
+      </div>
     </div>
   );
 }
@@ -445,9 +503,9 @@ function ResultBadge({ result }: { result: SubmissionResult }) {
           <span className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
           <span className={`font-semibold text-sm ${colors.text}`}>{label}</span>
         </div>
-        {result.execution_time_ms != null && (
+        {result.total_time_ms != null && (
           <span className="text-sm text-gray-600">
-            {result.execution_time_ms.toFixed(2)} ms
+            Total: {result.total_time_ms.toFixed(2)} ms
           </span>
         )}
       </div>
@@ -456,6 +514,21 @@ function ResultBadge({ result }: { result: SubmissionResult }) {
           {result.error_message}
         </div>
       )}
+    </div>
+  );
+}
+
+function AverageTotalTime({ instances }: { instances: InstanceResult[] }) {
+  const n = instances.length;
+  const totalTimes = instances.map((i) => i.execution_time_ms + i.planning_time_ms);
+  const avgTotal = totalTimes.reduce((a, b) => a + b, 0) / n;
+  const formula = totalTimes.map((v) => v.toFixed(2)).join(" + ");
+
+  return (
+    <div className="text-sm font-mono text-gray-600 mb-6">
+      <span className="text-gray-500">Average Total Time</span>{" "}
+      = ({formula}) / {n} ={" "}
+      <span className="font-semibold text-gray-900">{avgTotal.toFixed(2)} ms</span>
     </div>
   );
 }
@@ -470,11 +543,14 @@ function ExecutionTab({
   return (
     <div>
       {result.instances && result.instances.length > 0 ? (
-        <div className="grid grid-cols-3 gap-6 mb-6">
-          {result.instances.map((inst, i) => (
-            <InstanceCard key={i} instance={inst} cacheRatio={cacheRatio} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-6 mb-4">
+            {result.instances.map((inst, i) => (
+              <InstanceCard key={i} instance={inst} cacheRatio={cacheRatio} />
+            ))}
+          </div>
+          <AverageTotalTime instances={result.instances} />
+        </>
       ) : (
         <p className="text-gray-500 text-sm mb-6">
           Detailed per-instance results will appear here once multi-instance
@@ -499,15 +575,17 @@ function InstanceCard({
   cacheRatio: (hits: number, reads: number) => number;
 }) {
   const ratio = cacheRatio(instance.buffer_hits, instance.buffer_reads);
-  const timeColor =
-    instance.execution_time_ms < 5
+  const instanceTotalTime = instance.execution_time_ms + instance.planning_time_ms;
+  const totalTimeColor =
+    instanceTotalTime < 5
       ? "text-green-600"
-      : instance.execution_time_ms < 50
+      : instanceTotalTime < 50
         ? "text-yellow-600"
         : "text-red-600";
 
   const metrics = [
-    { label: "Execution Time", value: `${instance.execution_time_ms.toFixed(2)} ms`, color: timeColor },
+    { label: "Total Time", value: `${instanceTotalTime.toFixed(2)} ms`, color: totalTimeColor },
+    { label: "Execution Time", value: `${instance.execution_time_ms.toFixed(2)} ms` },
     { label: "Planning Time", value: `${instance.planning_time_ms.toFixed(2)} ms` },
     { label: "Total Cost", value: instance.total_cost.toLocaleString() },
     { label: "Rows Returned", value: instance.rows_returned.toLocaleString() },
@@ -547,21 +625,78 @@ function InstanceCard({
   );
 }
 
-function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
+function LeaderboardPanel({
+  leaderboard,
+  mySubmissions,
+  isLoggedIn,
+  selectedSubmissionId,
+  onSelectSubmission,
+}: {
+  leaderboard: LeaderboardRow[];
+  mySubmissions: MySubmission[];
+  isLoggedIn: boolean;
+  selectedSubmissionId: number | null;
+  onSelectSubmission: (id: number) => void;
+}) {
+  const [subTab, setSubTab] = useState<"my-submissions" | "ranking">(
+    isLoggedIn ? "my-submissions" : "ranking"
+  );
+
+  const subTabs = [
+    ...(isLoggedIn ? [{ id: "my-submissions" as const, label: "My Submissions" }] : []),
+    { id: "ranking" as const, label: "Ranking" },
+  ];
+
   return (
-    <div className="mt-8">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        Challenge Leaderboard
-      </h3>
+    <div>
+      <div className="flex gap-2 mb-4">
+        {subTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setSubTab(tab.id)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+              subTab === tab.id
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {subTab === "ranking" && <ChallengeLeaderboard entries={leaderboard} />}
+      {subTab === "my-submissions" && (
+        <MySubmissions
+          entries={mySubmissions}
+          selectedId={selectedSubmissionId}
+          onSelect={onSelectSubmission}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
+  if (entries.length === 0) {
+    return (
+      <p className="text-gray-500 text-sm">
+        No correct submissions yet. Be the first to solve this challenge!
+      </p>
+    );
+  }
+
+  return (
+    <div>
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Exec Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submissions</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Submit</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Best Total Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Planning Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted On</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -570,12 +705,103 @@ function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
                 <td className="px-6 py-3 font-semibold text-indigo-600">#{row.rank}</td>
                 <td className="px-6 py-3">{row.username}</td>
                 <td className="px-6 py-3 font-medium text-green-600">
-                  {row.avg_execution_time_ms.toFixed(2)} ms
+                  {row.best_total_time_ms.toFixed(2)} ms
                 </td>
-                <td className="px-6 py-3">{row.submission_count}</td>
+                <td className="px-6 py-3 text-gray-500">{row.best_execution_time_ms.toFixed(2)} ms</td>
+                <td className="px-6 py-3 text-gray-500">{row.best_planning_time_ms.toFixed(2)} ms</td>
                 <td className="px-6 py-3 text-gray-500">{row.last_submitted}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MySubmissions({
+  entries,
+  selectedId,
+  onSelect,
+}: {
+  entries: MySubmission[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  if (entries.length === 0) {
+    return (
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">My Attempts</h3>
+        <p className="text-gray-500 text-sm">No submissions yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">My Attempts</h3>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Planning Time</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
+              <th className="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {entries.map((s) => {
+              const totalTime =
+                s.execution_time_ms != null && s.planning_time_ms != null
+                  ? s.execution_time_ms + s.planning_time_ms
+                  : null;
+              return (
+                <tr
+                  key={s.id}
+                  onClick={() => onSelect(s.id)}
+                  className={`cursor-pointer ${
+                    selectedId === s.id
+                      ? "bg-indigo-50 border-l-4 border-indigo-600"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <td className="px-6 py-3 text-gray-900">{s.id}</td>
+                  <td className="px-6 py-3">
+                    {s.error_message ? (
+                      <span className="text-red-600">Error</span>
+                    ) : s.is_correct ? (
+                      <span className="text-green-600 font-medium">Correct</span>
+                    ) : (
+                      <span className="text-yellow-600">Incorrect</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-3 font-medium text-gray-900">
+                    {totalTime != null ? `${totalTime.toFixed(2)} ms` : "--"}
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">
+                    {s.execution_time_ms != null ? `${s.execution_time_ms.toFixed(2)} ms` : "--"}
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">
+                    {s.planning_time_ms != null ? `${s.planning_time_ms.toFixed(2)} ms` : "--"}
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">
+                    {new Date(s.submitted_at).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td className="px-6 py-3 text-indigo-600 text-sm font-medium">
+                    {selectedId === s.id ? "Viewing" : "View →"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

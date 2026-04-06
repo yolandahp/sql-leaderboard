@@ -162,11 +162,20 @@ def _submission_response(
             for ir in instance_results
         ]
 
+    total_time_ms = None
+    if instance_results:
+        total_time_ms = sum(
+            ir.execution_time_ms + ir.planning_time_ms for ir in instance_results
+        ) / len(instance_results)
+    elif submission.execution_time_ms is not None and submission.planning_time_ms is not None:
+        total_time_ms = submission.execution_time_ms + submission.planning_time_ms
+
     return {
         "id": submission.id,
         "is_correct": submission.is_correct,
         "execution_time_ms": submission.execution_time_ms,
         "planning_time_ms": submission.planning_time_ms,
+        "total_time_ms": total_time_ms,
         "total_cost": submission.total_cost,
         "explain_output": submission.explain_output,
         "error_message": submission.error_message,
@@ -174,6 +183,59 @@ def _submission_response(
         "expected_table": expected_table,
         "instances": instances,
     }
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def submission_detail(request, pk):
+    """GET /api/submissions/<id> — full submission detail with instance data."""
+    submission = Submission.objects.filter(
+        pk=pk, user=request.user,
+    ).first()
+    if submission is None:
+        return Response(
+            {"detail": "Submission not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Reconstruct instances from plan_artifacts
+    instances = []
+    artifacts = submission.plan_artifacts or {}
+    for inst in artifacts.get("instances", []):
+        instances.append({
+            "label": inst.get("label", ""),
+            "config": inst.get("instance_id", ""),
+            "execution_time_ms": inst.get("execution_time_ms", 0),
+            "planning_time_ms": inst.get("planning_time_ms", 0),
+            "total_cost": inst.get("total_cost", 0),
+            "rows_returned": inst.get("rows_returned", 0),
+            "buffer_hits": inst.get("buffer_hits", 0),
+            "buffer_reads": inst.get("buffer_reads", 0),
+            "explain_output": json.dumps(inst.get("explain_json", []), indent=2),
+        })
+
+    total_time_ms = None
+    if instances:
+        total_time_ms = sum(
+            i["execution_time_ms"] + i["planning_time_ms"] for i in instances
+        ) / len(instances)
+    elif submission.execution_time_ms is not None and submission.planning_time_ms is not None:
+        total_time_ms = submission.execution_time_ms + submission.planning_time_ms
+
+    return Response({
+        "id": submission.id,
+        "challenge_id": submission.challenge_id,
+        "query": submission.query,
+        "is_correct": submission.is_correct,
+        "execution_time_ms": submission.execution_time_ms,
+        "planning_time_ms": submission.planning_time_ms,
+        "total_time_ms": total_time_ms,
+        "total_cost": submission.total_cost,
+        "explain_output": submission.explain_output,
+        "error_message": submission.error_message,
+        "submitted_at": submission.submitted_at.isoformat(),
+        "instances": instances,
+    })
 
 
 @api_view(["GET"])

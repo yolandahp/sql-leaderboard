@@ -4,6 +4,7 @@ from .stats import platform_stats  # noqa: F401
 from .leaderboard import leaderboard, challenge_leaderboard  # noqa: F401
 from .submissions import (  # noqa: F401
     submit_query,
+    submission_detail,
     index_advice,
     submission_comparison_targets,
     submission_plan_diff,
