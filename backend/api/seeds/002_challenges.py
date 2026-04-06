@@ -47,6 +47,7 @@ CHALLENGES = [
             "CREATE INDEX idx_orders_date ON orders(order_date);"
         ),
         "seed_sql_large": (
+            "SELECT setseed(0.42);\n\n"
             "INSERT INTO customers (name, email, region)\n"
             "SELECT 'Customer_' || i, 'user' || i || '@example.com',\n"
             "  (ARRAY['North','South','East','West'])[1 + (i % 4)]\n"
@@ -121,6 +122,7 @@ CHALLENGES = [
             "CREATE INDEX idx_order_items_region ON order_items(region_id);"
         ),
         "seed_sql_large": (
+            "SELECT setseed(0.42);\n\n"
             "INSERT INTO products (name, price)\n"
             "SELECT 'Product_' || i, (random() * 1000)::numeric(10,2)\n"
             "FROM generate_series(7, 100) AS i;\n\n"
@@ -195,6 +197,7 @@ CHALLENGES = [
             "CREATE INDEX idx_orders_date ON orders(order_date);"
         ),
         "seed_sql_large": (
+            "SELECT setseed(0.42);\n\n"
             "INSERT INTO products (name, category, price)\n"
             "SELECT 'Product_' || i,\n"
             "  (ARRAY['Electronics','Furniture','Books','Sports','Food'])[1 + (i % 5)],\n"

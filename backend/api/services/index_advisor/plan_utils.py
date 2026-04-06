@@ -1,3 +1,6 @@
+from ..executor import _extract_buffer_stats, run_explain_averaged  # noqa: F401
+
+
 def _find_scan_nodes(plan: dict) -> list[dict]:
     """Recursively find scan-type nodes in a plan tree."""
     results = []
@@ -34,14 +37,3 @@ def _detect_plan_node_change(baseline_plan: dict, new_plan: dict) -> str | None:
                 return f"{old_type} -> {nt} on {table}"
 
     return None
-
-
-def _extract_buffer_stats(plan: dict) -> tuple[int, int]:
-    """Recursively sum buffer hits and reads from a plan tree."""
-    hits = plan.get("Shared Hit Blocks", 0)
-    reads = plan.get("Shared Read Blocks", 0)
-    for child in plan.get("Plans", []):
-        ch, cr = _extract_buffer_stats(child)
-        hits += ch
-        reads += cr
-    return hits, reads

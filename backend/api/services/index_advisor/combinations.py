@@ -1,6 +1,7 @@
 import logging
 
 from .types import ValidatedCandidate, CombinationResult
+from .plan_utils import run_explain_averaged
 
 logger = logging.getLogger(__name__)
 
@@ -46,32 +47,31 @@ def test_combinations(
             for table in tables_to_analyze:
                 cur.execute(f"ANALYZE {table}")
 
-            # Run EXPLAIN ANALYZE
-            cur.execute(f"EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) {query}")
-            explain = cur.fetchone()[0]
-            plan = explain[0]["Plan"]
+        explain = run_explain_averaged(query, conn)
+        plan = explain[0]["Plan"]
 
-            combined_cost = plan.get("Total Cost", 0.0)
-            combined_time = explain[0].get("Execution Time", 0.0)
-            strategy = _detect_bitmap_strategy(plan) or plan.get("Node Type", "unknown")
+        combined_cost = plan.get("Total Cost", 0.0)
+        combined_time = explain[0].get("Execution Time", 0.0)
 
-            # Compare to best individual
-            best_individual_cost = min(vc.actual_cost for vc in validated) if validated else combined_cost
-            # Negative = combination is better than best individual
-            vs_best = (
-                (combined_cost - best_individual_cost) / best_individual_cost * 100
-            ) if best_individual_cost > 0 else 0.0
+        strategy = _detect_bitmap_strategy(plan) or plan.get("Node Type", "unknown")
 
-            index_ddls = [vc.screened.candidate.ddl for vc in validated]
+        # Compare to best individual
+        best_individual_cost = min(vc.actual_cost for vc in validated) if validated else combined_cost
+        # Negative = combination is better than best individual
+        vs_best = (
+            (combined_cost - best_individual_cost) / best_individual_cost * 100
+        ) if best_individual_cost > 0 else 0.0
 
-            results.append(CombinationResult(
-                indexes=index_ddls,
-                combined_cost=combined_cost,
-                combined_time_ms=combined_time,
-                plan_strategy=strategy,
-                vs_best_individual_pct=round(vs_best, 2),
-                plan_json=plan,
-            ))
+        index_ddls = [vc.screened.candidate.ddl for vc in validated]
+
+        results.append(CombinationResult(
+            indexes=index_ddls,
+            combined_cost=combined_cost,
+            combined_time_ms=combined_time,
+            plan_strategy=strategy,
+            vs_best_individual_pct=round(vs_best, 2),
+            plan_json=plan,
+        ))
 
     except Exception:
         logger.exception("Combination testing failed")

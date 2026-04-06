@@ -10,6 +10,7 @@ from .types import (
     COST_THRESHOLD_PCT,
 )
 from .ast_extractor import extract_columns_and_candidates
+from .plan_utils import run_explain_averaged
 from .selectivity import analyze_selectivity
 from .screening import screen_with_hypopg
 from .validation import validate_candidates
@@ -20,17 +21,15 @@ logger = logging.getLogger(__name__)
 
 def _get_baseline(query: str, conn) -> BaselineResult:
     """Run the query without any advisory indexes to get baseline metrics."""
-    with conn.cursor() as cur:
-        cur.execute(f"EXPLAIN (ANALYZE, COSTS, BUFFERS, FORMAT JSON) {query}")
-        explain = cur.fetchone()[0]
-        plan = explain[0]["Plan"]
-        estimated_cost = plan.get("Total Cost", 0.0)
-        actual_time = explain[0].get("Execution Time", 0.0)
-        top_node_type = plan.get("Node Type", "")
+    explain = run_explain_averaged(query, conn)
+    plan = explain[0]["Plan"]
+    estimated_cost = plan.get("Total Cost", 0.0)
+    actual_time = explain[0].get("Execution Time", 0.0)
+    top_node_type = plan.get("Node Type", "")
 
-        rows = plan.get("Plan Rows", 0)
-        cpu_cost = rows * 0.01
-        io_cost = max(estimated_cost - cpu_cost, 0.0)
+    rows = plan.get("Plan Rows", 0)
+    cpu_cost = rows * 0.01
+    io_cost = max(estimated_cost - cpu_cost, 0.0)
 
     return BaselineResult(
         estimated_cost=estimated_cost,
@@ -53,10 +52,17 @@ def analyze_indexes(query: str, challenge, baseline_time_ms: float = 0.0) -> dic
         JSON-serializable dict with recommendations.
     """
     start = time.time()
-    instance = settings.SANDBOX_INSTANCES[0]
-    url = instance["url"]
     schema_sql = challenge.materialized_schema_sql or challenge.schema_sql
     seed_sql = challenge.materialized_seed_sql or challenge.seed_sql
+    large_seed_sql = getattr(challenge, "seed_sql_large", "") or ""
+
+    # Use the "large" (no-index) sandbox instance for meaningful baseline analysis.
+    # Fall back to the first instance if no "large" instance is configured.
+    instance = next(
+        (i for i in settings.SANDBOX_INSTANCES if i["id"] == "large"),
+        settings.SANDBOX_INSTANCES[0],
+    )
+    url = instance["url"]
 
     metadata = {
         "candidates_generated": 0,
@@ -68,17 +74,13 @@ def analyze_indexes(query: str, challenge, baseline_time_ms: float = 0.0) -> dic
         "analysis_time_ms": 0.0,
     }
 
-    # Also load large seed data if available — small datasets make indexes useless
-    large_seed_sql = getattr(challenge, "seed_sql_large", "") or ""
-
     try:
-        # Setup sandbox
+        # Setup sandbox — use large seed as baseline (no indexes) when available
         teardown_sandbox(schema_sql, url=url)
-        setup_sandbox(schema_sql, seed_sql, url=url)
-
-        # Load large dataset on top of base seed for meaningful index analysis
         if large_seed_sql:
-            setup_sandbox("", large_seed_sql, url=url)
+            setup_sandbox(schema_sql, large_seed_sql, url=url)
+        else:
+            setup_sandbox(schema_sql, seed_sql, url=url)
 
         conn = _connect(url)
         conn.autocommit = True
