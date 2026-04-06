@@ -90,9 +90,9 @@ services:
       DB_HOST: app-db
       DB_PORT: 5432
       SANDBOX_INSTANCES: >-
-        default|Default|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME},
-        indexed|With Indexes|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-indexed:5432/${SANDBOX_DB_NAME},
-        large|Large Dataset|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-large:5432/${SANDBOX_DB_NAME}
+        default|Default (Small Data)|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME},
+        large|Large Dataset|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-large:5432/${SANDBOX_DB_NAME},
+        large-indexed|Large Dataset with Index|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-indexed:5432/${SANDBOX_DB_NAME}
       SANDBOX_DATABASE_URL: postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
     ports:
