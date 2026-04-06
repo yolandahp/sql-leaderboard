@@ -3,6 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 
+def extract_plan(explain_json) -> dict[str, Any] | None:
+    """Safely extract the Plan dict from an explain_json field."""
+    if not explain_json or not isinstance(explain_json, list):
+        return None
+    return explain_json[0].get("Plan") if explain_json[0] else None
+
+
 def build_plan_artifacts(primary_result, instance_results: list) -> dict[str, Any]:
     return {
         "primary_instance_id": instance_results[0].instance_id if instance_results else None,
@@ -46,7 +53,7 @@ def available_instance_ids(submission) -> list[str]:
     return [
         inst["instance_id"]
         for inst in instances
-        if (inst.get("explain_json") or [{}])[0].get("Plan")
+        if extract_plan(inst.get("explain_json"))
     ]
 
 
@@ -57,7 +64,7 @@ def instance_options(submission) -> list[dict[str, Any]]:
         {
             "id": inst["instance_id"],
             "label": inst["label"],
-            "has_plan": bool((inst.get("explain_json") or [{}])[0].get("Plan")),
+            "has_plan": bool(extract_plan(inst.get("explain_json"))),
         }
         for inst in instances
     ]

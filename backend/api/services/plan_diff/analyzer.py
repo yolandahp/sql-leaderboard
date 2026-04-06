@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .artifacts import (
     default_instance_id,
+    extract_plan,
     get_instance_artifact,
     instance_options,
     resolve_instance_option,
@@ -12,6 +14,8 @@ from .artifacts import (
 from .insights import build_insights, build_summary, summarize_pair
 from .matcher import match_nodes
 from .normalizer import flatten_tree, normalize_plan
+
+logger = logging.getLogger(__name__)
 
 
 def list_comparison_targets(current_submission, submissions) -> dict[str, Any]:
@@ -66,12 +70,16 @@ def generate_plan_diff(submission_a, submission_b, instance_id: str | None = Non
     }
 
     if artifact_a is None or artifact_b is None:
+        logger.debug(
+            "Missing artifact for submissions %s/%s on instance %s",
+            submission_a.id, submission_b.id, instance_id,
+        )
         response["status"] = "missing_plan"
         response["message"] = "Analysis is unavailable for this comparison target because one submission is missing a usable execution plan for the selected instance."
         return response
 
-    plan_a = (artifact_a.get("explain_json") or [{}])[0].get("Plan")
-    plan_b = (artifact_b.get("explain_json") or [{}])[0].get("Plan")
+    plan_a = extract_plan(artifact_a.get("explain_json"))
+    plan_b = extract_plan(artifact_b.get("explain_json"))
     if not plan_a or not plan_b:
         response["status"] = "missing_plan"
         response["message"] = "Analysis is unavailable for this comparison target because one submission is missing a usable execution plan for the selected instance."

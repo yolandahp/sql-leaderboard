@@ -41,15 +41,15 @@ def summarize_pair(node_a: dict[str, Any], node_b: dict[str, Any]) -> dict[str, 
 
 
 def build_summary(submission_a, submission_b, matches: list[dict[str, Any]]) -> dict[str, Any]:
-    time_a = submission_a.execution_time_ms or 0.0
-    time_b = submission_b.execution_time_ms or 0.0
+    time_a = submission_a.execution_time_ms
+    time_b = submission_b.execution_time_ms
     verdict = "Both submissions have comparable runtime characteristics."
 
-    if time_a and time_b:
-        if time_b < time_a:
+    if time_a is not None and time_b is not None and time_a != time_b:
+        if time_b < time_a and time_b > 0:
             ratio = round(time_a / time_b, 2)
             verdict = f"Submission B is {ratio}x faster than your current query."
-        elif time_b > time_a:
+        elif time_b > time_a and time_a > 0:
             ratio = round(time_b / time_a, 2)
             verdict = f"Submission B is {ratio}x slower than your current query."
 
