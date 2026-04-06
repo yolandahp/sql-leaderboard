@@ -4,6 +4,8 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
 import type { IndexAdviceResult } from "../components/index-advisor/types";
+import PlanDiffTab from "../components/plan-diff/PlanDiffTab";
+import ExecutionPlanTable from "../components/ExecutionPlanTable";
 
 interface ChallengeInfo {
   id: number;
@@ -44,6 +46,7 @@ interface InstanceResult {
   rows_returned: number;
   buffer_hits: number;
   buffer_reads: number;
+  explain_output: string | null;
 }
 
 interface LeaderboardRow {
@@ -225,7 +228,9 @@ function ChallengeDetail() {
           {activeTab === "execution" && (
             <ExecutionTab result={result} cacheRatio={cacheRatio} />
           )}
-          {activeTab === "plan-diff" && <PlanDiffTab />}
+          {activeTab === "plan-diff" && (
+            <PlanDiffTab challengeId={challenge.id} result={result} />
+          )}
           {activeTab === "index-advisor" && (
             <IndexAdvisorTab
               advice={indexAdvice}
@@ -361,12 +366,12 @@ function QueryResultTable({ title, table }: { title?: string; table: ResultTable
       </div>
       <div className="bg-white rounded-lg shadow overflow-x-auto max-h-64 overflow-y-auto">
         <table className="min-w-full text-xs">
-          <thead className="bg-gray-50 sticky top-0">
+          <thead className="bg-indigo-50 sticky top-0 border-b border-indigo-200">
             <tr>
               {table.columns.map((col) => (
                 <th
                   key={col}
-                  className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider"
+                  className="px-3 py-2 text-left font-medium text-indigo-900 uppercase tracking-wider"
                 >
                   {col}
                 </th>
@@ -449,14 +454,10 @@ function ExecutionTab({
         </p>
       )}
       {result.explain_output && (
-        <div className="bg-white rounded-xl shadow p-5">
-          <h4 className="font-semibold text-gray-900 text-sm mb-4">
-            Execution Plan
-          </h4>
-          <pre className="font-mono text-xs whitespace-pre-wrap text-gray-700 bg-gray-50 rounded-lg p-4 overflow-x-auto">
-            {result.explain_output}
-          </pre>
-        </div>
+        <ExecutionPlanTable
+          explainOutput={result.explain_output}
+          instances={result.instances}
+        />
       )}
     </div>
   );
@@ -514,20 +515,6 @@ function InstanceCard({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function PlanDiffTab() {
-  return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <h4 className="font-semibold text-gray-900 mb-4">
-        Plan Diff: Compare Submissions
-      </h4>
-      <p className="text-sm text-gray-500">
-        Plan diff analysis will be available once you have multiple submissions
-        for this challenge.
-      </p>
     </div>
   );
 }
