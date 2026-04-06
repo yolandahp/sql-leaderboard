@@ -42,10 +42,16 @@ def submit_query(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    is_admin = request.user.is_staff
+
     # Validate SQL
     try:
         query = validate_query(raw_query)
     except QueryValidationError as e:
+        if is_admin:
+            return Response(_submission_response(
+                _ephemeral_submission(request.user, challenge, raw_query, error_message=str(e)),
+            ))
         submission = Submission.objects.create(
             user=request.user,
             challenge=challenge,
@@ -74,17 +80,27 @@ def submit_query(request):
             ir.planning_time_ms for ir in instance_results
         ) / len(instance_results)
 
-        submission = Submission.objects.create(
-            user=request.user,
-            challenge=challenge,
-            query=query,
-            is_correct=is_correct,
-            execution_time_ms=avg_execution_ms,
-            planning_time_ms=avg_planning_ms,
-            total_cost=user_result.total_cost,
-            explain_output=json.dumps(user_result.explain_json, indent=2),
-            plan_artifacts=build_plan_artifacts(user_result, instance_results),
-        )
+        if is_admin:
+            submission = _ephemeral_submission(
+                request.user, challenge, query,
+                is_correct=is_correct,
+                execution_time_ms=avg_execution_ms,
+                planning_time_ms=avg_planning_ms,
+                total_cost=user_result.total_cost,
+                explain_output=json.dumps(user_result.explain_json, indent=2),
+            )
+        else:
+            submission = Submission.objects.create(
+                user=request.user,
+                challenge=challenge,
+                query=query,
+                is_correct=is_correct,
+                execution_time_ms=avg_execution_ms,
+                planning_time_ms=avg_planning_ms,
+                total_cost=user_result.total_cost,
+                explain_output=json.dumps(user_result.explain_json, indent=2),
+                plan_artifacts=build_plan_artifacts(user_result, instance_results),
+            )
         return Response(_submission_response(
             submission,
             columns=user_result.columns,
@@ -95,6 +111,10 @@ def submit_query(request):
         ))
 
     except ExecutionError as e:
+        if is_admin:
+            return Response(_submission_response(
+                _ephemeral_submission(request.user, challenge, query, error_message=str(e)),
+            ))
         submission = Submission.objects.create(
             user=request.user,
             challenge=challenge,
@@ -102,6 +122,17 @@ def submit_query(request):
             error_message=str(e),
         )
         return Response(_submission_response(submission))
+
+
+def _ephemeral_submission(user, challenge, query, **kwargs):
+    """Build an unsaved Submission instance for admin test runs."""
+    return Submission(
+        id=0,
+        user=user,
+        challenge=challenge,
+        query=query,
+        **kwargs,
+    )
 
 
 def _serialize_value(value):

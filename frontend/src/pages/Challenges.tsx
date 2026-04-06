@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Challenge {
   id: number;
@@ -22,8 +23,11 @@ const difficultyBadge: Record<string, string> = {
 };
 
 function Challenges() {
+  const { user } = useAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("newest");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,15 +37,33 @@ function Challenges() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered =
-    filter === "all"
-      ? challenges
-      : challenges.filter((c) => c.difficulty === filter);
+  const filtered = challenges
+    .filter((c) => filter === "all" || c.difficulty === filter)
+    .filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      switch (sort) {
+        case "newest": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "oldest": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "name": return a.title.localeCompare(b.title);
+        case "submissions": return b.submission_count - a.submission_count;
+        default: return 0;
+      }
+    });
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Challenges</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-900">Challenges</h2>
+          {user?.is_admin && (
+            <Link
+              to="/admin/challenges/new"
+              className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition"
+            >
+              + New Challenge
+            </Link>
+          )}
+        </div>
         <div className="flex gap-2">
           {["all", "easy", "medium", "hard"].map((f) => (
             <button
@@ -54,6 +76,36 @@ function Challenges() {
               }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-4 mb-6">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by challenge name..."
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <div className="flex gap-1">
+          {[
+            { id: "newest", label: "Newest" },
+            { id: "oldest", label: "Oldest" },
+            { id: "name", label: "Name" },
+            { id: "submissions", label: "Most Submissions" },
+          ].map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSort(s.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                sort === s.id
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {s.label}
             </button>
           ))}
         </div>

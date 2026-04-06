@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
@@ -74,6 +74,7 @@ type TabId = "execution" | "plan-diff" | "index-advisor" | "leaderboard";
 
 function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
   const [query, setQuery] = useState("");
@@ -172,6 +173,14 @@ function ChallengeDetail() {
       setError("Failed to load submission details.");
     }
   };
+
+  // Auto-load submission from URL query param
+  useEffect(() => {
+    const submissionId = searchParams.get("submission");
+    if (submissionId) {
+      handleSelectSubmission(Number(submissionId));
+    }
+  }, []);
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
   if (!challenge) return <p className="text-gray-500">Challenge not found.</p>;
@@ -544,11 +553,7 @@ function ExecutionTab({
     <div>
       {result.instances && result.instances.length > 0 ? (
         <>
-          <div className="grid grid-cols-3 gap-6 mb-4">
-            {result.instances.map((inst, i) => (
-              <InstanceCard key={i} instance={inst} cacheRatio={cacheRatio} />
-            ))}
-          </div>
+          <InstanceGrid instances={result.instances} cacheRatio={cacheRatio} />
           <AverageTotalTime instances={result.instances} />
         </>
       ) : (
@@ -563,6 +568,40 @@ function ExecutionTab({
           instances={result.instances}
         />
       )}
+    </div>
+  );
+}
+
+const ALL_INSTANCE_SLOTS = [
+  { id: "default", label: "Default (Small Data)" },
+  { id: "large", label: "Large Dataset" },
+  { id: "large-indexed", label: "Large Dataset with Index" },
+];
+
+function InstanceGrid({
+  instances,
+  cacheRatio,
+}: {
+  instances: InstanceResult[];
+  cacheRatio: (hits: number, reads: number) => number;
+}) {
+  const instanceMap = new Map(instances.map((i) => [i.config, i]));
+
+  return (
+    <div className="grid grid-cols-3 gap-6 mb-4">
+      {ALL_INSTANCE_SLOTS.map((slot) => {
+        const inst = instanceMap.get(slot.id);
+        return inst ? (
+          <InstanceCard key={slot.id} instance={inst} cacheRatio={cacheRatio} />
+        ) : (
+          <div key={slot.id} className="bg-white rounded-xl shadow p-5 flex flex-col items-center justify-center text-center">
+            <h4 className="font-semibold text-gray-400 text-sm mb-3">{slot.label}</h4>
+            <p className="text-gray-400 text-sm">
+              Not available for this challenge.
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

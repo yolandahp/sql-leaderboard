@@ -275,7 +275,17 @@ def execute_on_all_instances(
     challenge,
 ) -> tuple[ExecutionResult, list[InstanceResult]]:
     """Run a query on all sandbox instances. Returns primary result + per-instance metrics."""
-    instances = settings.SANDBOX_INSTANCES
+    all_instances = settings.SANDBOX_INSTANCES
+    has_large_data = bool(getattr(challenge, "seed_sql_large", "") or "")
+    has_indexes = bool(getattr(challenge, "index_sql", "") or "")
+
+    instances = [
+        inst for inst in all_instances
+        if inst["id"] == "default"
+        or (inst["id"] == "large" and has_large_data)
+        or (inst["id"] == "large-indexed" and (has_large_data or has_indexes))
+    ]
+
     primary_result = None
     instance_results = []
 

@@ -14,8 +14,9 @@ interface OverallEntry {
 interface ChallengeEntry {
   rank: number;
   username: string;
-  avg_execution_time_ms: number;
-  planning_time_ms: number;
+  best_total_time_ms: number;
+  best_execution_time_ms: number;
+  best_planning_time_ms: number;
   submission_count: number;
   last_submitted: string;
 }
@@ -31,6 +32,7 @@ function Leaderboard() {
   const [challengeEntries, setChallengeEntries] = useState<ChallengeEntry[]>([]);
   const [challenges, setChallenges] = useState<ChallengeOption[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,21 +42,33 @@ function Leaderboard() {
       .finally(() => setLoading(false));
 
     apiFetch<ChallengeOption[]>("/api/challenges")
-      .then((data) => {
-        setChallenges(data);
-        if (data.length > 0) setSelectedChallenge(data[0].id);
-      })
+      .then(setChallenges)
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (view !== "challenge" || !selectedChallenge) return;
-    setLoading(true);
+    if (!selectedChallenge) {
+      setChallengeEntries([]);
+      return;
+    }
     apiFetch<ChallengeEntry[]>(`/api/leaderboard/challenge/${selectedChallenge}`)
       .then(setChallengeEntries)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [view, selectedChallenge]);
+      .catch(() => {});
+  }, [selectedChallenge]);
+
+  const filteredChallenges = challenges.filter((c) =>
+    c.title.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  // Auto-select when search narrows to exactly one match
+  useEffect(() => {
+    if (view !== "challenge") return;
+    if (filteredChallenges.length === 1) {
+      setSelectedChallenge(filteredChallenges[0].id);
+    } else if (search && !filteredChallenges.some((c) => c.id === selectedChallenge)) {
+      setSelectedChallenge(null);
+    }
+  }, [search, filteredChallenges.length]);
 
   const rankColor = (rank: number) => {
     if (rank === 1) return "text-yellow-600";
@@ -84,18 +98,14 @@ function Leaderboard() {
           ))}
         </div>
 
-        {view === "challenge" && challenges.length > 0 && (
-          <select
-            value={selectedChallenge ?? ""}
-            onChange={(e) => setSelectedChallenge(Number(e.target.value))}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
-          >
-            {challenges.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+        {view === "challenge" && (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search challenge..."
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
         )}
       </div>
 
@@ -104,7 +114,29 @@ function Leaderboard() {
       ) : view === "overall" ? (
         <OverallTable entries={overallEntries} rankColor={rankColor} />
       ) : (
-        <ChallengeTable entries={challengeEntries} rankColor={rankColor} />
+        <div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {filteredChallenges.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelectedChallenge(c.id)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                  selectedChallenge === c.id
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {c.title}
+              </button>
+            ))}
+            {filteredChallenges.length === 0 && (
+              <p className="text-gray-500 text-sm">No challenges match your search.</p>
+            )}
+          </div>
+          {selectedChallenge && (
+            <ChallengeTable entries={challengeEntries} rankColor={rankColor} />
+          )}
+        </div>
       )}
     </div>
   );
@@ -161,7 +193,7 @@ function ChallengeTable({
   rankColor: (r: number) => string;
 }) {
   if (entries.length === 0)
-    return <p className="text-gray-500">No correct submissions for this challenge yet.</p>;
+    return <p className="text-gray-500 text-sm">No correct submissions for this challenge yet.</p>;
 
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -170,7 +202,8 @@ function ChallengeTable({
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Exec Time</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Best Total Time</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Time</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Planning Time</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submissions</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Submitted</th>
@@ -184,8 +217,9 @@ function ChallengeTable({
             >
               <td className={`px-6 py-4 font-bold text-lg ${rankColor(e.rank)}`}>#{e.rank}</td>
               <td className="px-6 py-4 font-semibold">{e.username}</td>
-              <td className="px-6 py-4 font-medium text-green-600">{e.avg_execution_time_ms.toFixed(2)} ms</td>
-              <td className="px-6 py-4 text-gray-500">{e.planning_time_ms.toFixed(2)} ms</td>
+              <td className="px-6 py-4 font-medium text-green-600">{e.best_total_time_ms.toFixed(2)} ms</td>
+              <td className="px-6 py-4 text-gray-500">{e.best_execution_time_ms.toFixed(2)} ms</td>
+              <td className="px-6 py-4 text-gray-500">{e.best_planning_time_ms.toFixed(2)} ms</td>
               <td className="px-6 py-4">{e.submission_count}</td>
               <td className="px-6 py-4 text-gray-500">{e.last_submitted}</td>
             </tr>

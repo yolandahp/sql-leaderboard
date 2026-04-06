@@ -133,35 +133,8 @@ function Home() {
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
           Platform Features
         </h2>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow p-6">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-blue-50 text-blue-700">
-              Query Plan Diff
-            </span>
-            <p className="text-gray-600 text-sm">
-              Compare EXPLAIN ANALYZE output across submissions. See structural
-              changes, per-node timing deltas, and buffer cache hit ratios.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-green-50 text-green-700">
-              Index Recommendations
-            </span>
-            <p className="text-gray-600 text-sm">
-              Get hypothetical index suggestions via HypoPG. See estimated cost
-              reduction without actually creating indexes.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-orange-50 text-orange-700">
-              Multi-Instance Testing
-            </span>
-            <p className="text-gray-600 text-sm">
-              Queries run against multiple PostgreSQL instances with different
-              data sizes, versions, and index configurations.
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-xl shadow p-6 text-center">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-red-50 text-red-700">
               Sandbox Execution
             </span>
@@ -170,13 +143,42 @@ function Home() {
               transactions, statement timeouts, and resource limits.
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow p-6">
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-orange-50 text-orange-700">
+              Multi-Instance Testing
+            </span>
+            <p className="text-gray-600 text-sm">
+              Queries run against multiple PostgreSQL instances with different
+              data sizes, versions, and index configurations.
+            </p>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 text-center">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-teal-50 text-teal-700">
               Real-time Leaderboard
             </span>
             <p className="text-gray-600 text-sm">
               Per-challenge and overall rankings based on correctness and average
               execution time across all instances.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-blue-50 text-blue-700">
+              Query Plan Diff
+            </span>
+            <p className="text-gray-600 text-sm">
+              Compare EXPLAIN ANALYZE output across submissions. See structural
+              changes, per-node timing deltas, and buffer cache hit ratios.
+            </p>
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 bg-green-50 text-green-700">
+              Index Recommendations
+            </span>
+            <p className="text-gray-600 text-sm">
+              Get hypothetical index suggestions via HypoPG. See estimated cost
+              reduction without actually creating indexes.
             </p>
           </div>
         </div>
