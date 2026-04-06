@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from decimal import Decimal
 
 from .executor import ExecutionResult
@@ -45,8 +46,8 @@ def _normalize_rows(rows: list[tuple]) -> list[tuple]:
 def _normalize_value(value):
     if value is None:
         return None
-    if isinstance(value, Decimal):
-        return float(value)
-    if isinstance(value, float):
-        return float(value)
+    if isinstance(value, (Decimal, float)):
+        return Decimal(str(value)).normalize()
+    if isinstance(value, (date, datetime)):
+        return str(value)
     return value
