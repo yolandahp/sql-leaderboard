@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0003_materialize_challenge_data"),
+        ("api", "0005_alter_challenge_index_sql"),
     ]
 
     operations = [

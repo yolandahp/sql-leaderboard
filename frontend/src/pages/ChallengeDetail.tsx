@@ -4,7 +4,7 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
 import type { IndexAdviceResult } from "../components/index-advisor/types";
-import PlanDiffPanel from "../components/PlanDiffPanel";
+import PlanDiffTab from "../components/plan-diff/PlanDiffTab";
 
 interface ChallengeInfo {
   id: number;
@@ -227,7 +227,7 @@ function ChallengeDetail() {
             <ExecutionTab result={result} cacheRatio={cacheRatio} />
           )}
           {activeTab === "plan-diff" && (
-            <PlanDiffPanel challengeId={challenge.id} result={result} />
+            <PlanDiffTab challengeId={challenge.id} result={result} />
           )}
           {activeTab === "index-advisor" && (
             <IndexAdvisorTab
