@@ -69,7 +69,7 @@ function ChallengeForm() {
           body: JSON.stringify(form),
         });
       }
-      navigate("/admin/challenges");
+      navigate("/profile");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save.");
     } finally {
@@ -83,10 +83,10 @@ function ChallengeForm() {
     <div className="max-w-3xl mx-auto">
       <div className="mb-4">
         <Link
-          to="/admin/challenges"
+          to="/profile"
           className="text-sm text-indigo-600 hover:underline"
         >
-          &larr; Back to Manage Challenges
+          &larr; Back to Profile
         </Link>
       </div>
 
@@ -218,7 +218,7 @@ function ChallengeForm() {
                 : "Create Challenge"}
           </button>
           <Link
-            to="/admin/challenges"
+            to="/profile"
             className="px-6 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
           >
             Cancel
@@ -243,7 +243,7 @@ function TextInput({
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <input
         type="text"
@@ -276,7 +276,7 @@ function TextAreaInput({
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <textarea
         value={value}

@@ -1,4 +1,4 @@
-from django.db.models import Avg, Count, Min, Q, Value
+from django.db.models import Avg, Count, F, Min, Q, Value
 from django.db.models.functions import Coalesce
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -61,32 +61,28 @@ def challenge_leaderboard(request, pk):
     if not Challenge.objects.filter(pk=pk).exists():
         return Response([])
 
+    correct_filter = Q(
+        submissions__challenge_id=pk,
+        submissions__is_correct=True,
+    )
+
     users = (
         User.objects.filter(
             submissions__challenge_id=pk,
             submissions__is_correct=True,
         )
         .annotate(
+            best_total_time_ms=Min(
+                F("submissions__execution_time_ms") + F("submissions__planning_time_ms"),
+                filter=correct_filter,
+            ),
             best_execution_time_ms=Min(
                 "submissions__execution_time_ms",
-                filter=Q(
-                    submissions__challenge_id=pk,
-                    submissions__is_correct=True,
-                ),
+                filter=correct_filter,
             ),
-            avg_execution_time_ms=Avg(
-                "submissions__execution_time_ms",
-                filter=Q(
-                    submissions__challenge_id=pk,
-                    submissions__is_correct=True,
-                ),
-            ),
-            planning_time_ms=Min(
+            best_planning_time_ms=Min(
                 "submissions__planning_time_ms",
-                filter=Q(
-                    submissions__challenge_id=pk,
-                    submissions__is_correct=True,
-                ),
+                filter=correct_filter,
             ),
             submission_count=Count(
                 "submissions",
@@ -94,13 +90,10 @@ def challenge_leaderboard(request, pk):
             ),
             last_submitted=Min(
                 "submissions__submitted_at",
-                filter=Q(
-                    submissions__challenge_id=pk,
-                    submissions__is_correct=True,
-                ),
+                filter=correct_filter,
             ),
         )
-        .order_by("best_execution_time_ms")
+        .order_by("best_total_time_ms")
     )
 
     entries = []
@@ -108,8 +101,9 @@ def challenge_leaderboard(request, pk):
         entries.append({
             "rank": rank,
             "username": user.username,
-            "avg_execution_time_ms": user.avg_execution_time_ms,
-            "planning_time_ms": user.planning_time_ms,
+            "best_total_time_ms": user.best_total_time_ms,
+            "best_execution_time_ms": user.best_execution_time_ms,
+            "best_planning_time_ms": user.best_planning_time_ms,
             "submission_count": user.submission_count,
             "last_submitted": user.last_submitted.strftime("%Y-%m-%d %H:%M"),
         })

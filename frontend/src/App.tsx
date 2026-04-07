@@ -9,7 +9,6 @@ import Leaderboard from "./pages/Leaderboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
-import AdminChallenges from "./pages/AdminChallenges";
 import ChallengeForm from "./pages/ChallengeForm";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -44,14 +43,6 @@ function AppRoutes() {
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/challenges"
-            element={
-              <AdminRoute>
-                <AdminChallenges />
-              </AdminRoute>
             }
           />
           <Route

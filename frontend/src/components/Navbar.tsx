@@ -34,14 +34,6 @@ function Navbar() {
             </Link>
             {user ? (
               <>
-                {user.is_admin && (
-                  <Link
-                    to="/admin/challenges"
-                    className={linkClass("/admin/challenges")}
-                  >
-                    Admin
-                  </Link>
-                )}
                 <Link to="/profile" className={linkClass("/profile")}>
                   {user.username}
                 </Link>
