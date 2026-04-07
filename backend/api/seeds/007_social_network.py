@@ -142,13 +142,14 @@ CHALLENGE = {
     ),
     "seed_sql_large": (
         "SELECT setseed(0.42);\n\n"
-        "-- 10k users\n"
+        "-- 10k users (start from 1 so large seed is self-contained)\n"
         "INSERT INTO users (username, display_name, joined_at, is_verified)\n"
         "SELECT 'user_' || i,\n"
         "  'User ' || i,\n"
         "  '2022-01-01'::date + (random() * 1000)::int,\n"
         "  random() < 0.1\n"
-        "FROM generate_series(11, 10000) AS i;\n\n"
+        "FROM generate_series(1, 10000) AS i\n"
+        "ON CONFLICT (id) DO NOTHING;\n\n"
         "-- 1M friendships (~100 friends per user, bidirectional)\n"
         "-- Generate one direction, then insert reverse\n"
         "CREATE TEMP TABLE tmp_friends AS\n"
