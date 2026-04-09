@@ -42,7 +42,7 @@ def check_correctness(
 def _sort_key(row: tuple):
     """Sort key that handles None values by placing them before non-None."""
     return tuple(
-        (0, "") if v is None else (1, v) for v in row
+        (0, "") if v is None else (1, str(v)) for v in row
     )
 
 

@@ -43,8 +43,7 @@ CHALLENGES = [
             "  (4, 175.00, '2026-03-20');"
         ),
         "index_sql": (
-            "CREATE INDEX idx_orders_customer_id ON orders(customer_id);\n"
-            "CREATE INDEX idx_orders_date ON orders(order_date);"
+            "CREATE INDEX idx_orders_customer_covering ON orders(customer_id) INCLUDE (id, amount);"
         ),
         "seed_sql_large": (
             "SELECT setseed(0.42);\n\n"
@@ -121,8 +120,7 @@ CHALLENGES = [
             "  (6, 3, 80, 29.99);"
         ),
         "index_sql": (
-            "CREATE INDEX idx_order_items_product ON order_items(product_id);\n"
-            "CREATE INDEX idx_order_items_region ON order_items(region_id);"
+            "CREATE INDEX idx_oi_region_product_covering ON order_items(region_id, product_id) INCLUDE (quantity, unit_price);"
         ),
         "seed_sql_large": (
             "SELECT setseed(0.42);\n\n"
@@ -201,8 +199,7 @@ CHALLENGES = [
             "  (5, 2, '2025-10-10');"
         ),
         "index_sql": (
-            "CREATE INDEX idx_orders_product_id ON orders(product_id);\n"
-            "CREATE INDEX idx_orders_date ON orders(order_date);"
+            "CREATE INDEX idx_orders_product_date_covering ON orders(product_id, order_date) INCLUDE (quantity);"
         ),
         "seed_sql_large": (
             "SELECT setseed(0.42);\n\n"

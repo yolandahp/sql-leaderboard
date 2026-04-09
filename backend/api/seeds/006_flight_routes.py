@@ -106,9 +106,9 @@ CHALLENGE = {
         "  (1, 1, 3, '2025-06-10 12:00', '2025-06-10 12:03', '2025-06-10 14:00', '2025-06-10 14:05', 'completed', 176);"
     ),
     "index_sql": (
-        "CREATE INDEX idx_flights_origin_dest ON flights(origin_id, destination_id);\n"
-        "CREATE INDEX idx_flights_airline ON flights(airline_id);\n"
-        "CREATE INDEX idx_flights_scheduled ON flights(scheduled_departure);"
+        "CREATE INDEX idx_flights_route_active ON flights(origin_id, destination_id)\n"
+        "  INCLUDE (scheduled_departure, actual_departure)\n"
+        "  WHERE status != 'cancelled' AND actual_departure IS NOT NULL;"
     ),
     "seed_sql_large": (
         "SELECT setseed(0.42);\n\n"

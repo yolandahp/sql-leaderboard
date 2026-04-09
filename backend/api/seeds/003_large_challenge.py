@@ -102,8 +102,8 @@ CHALLENGE = {
         "  (15, 5, 1, 49.99, 'completed', '2024-08-10');"
     ),
     "index_sql": (
-        "CREATE INDEX idx_orders_status_date ON orders(status, order_date);\n"
-        "CREATE INDEX idx_orders_customer_id ON orders(customer_id);"
+        "CREATE INDEX idx_customers_region_covering ON customers(region) INCLUDE (id, name, segment);\n"
+        "CREATE INDEX idx_orders_cust_status_date ON orders(customer_id, status, order_date) INCLUDE (id, total_amount);"
     ),
     "seed_sql_large": (
         "SELECT setseed(0.42);\n\n"

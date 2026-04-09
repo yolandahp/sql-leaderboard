@@ -88,9 +88,9 @@ CHALLENGE = {
         "  (5, 18, '2024S1', 'A'), (5, 19, '2024S2', 'B');"
     ),
     "index_sql": (
-        "CREATE INDEX idx_prerequisites_course ON prerequisites(course_id);\n"
-        "CREATE INDEX idx_prerequisites_prereq ON prerequisites(prerequisite_id);\n"
-        "CREATE INDEX idx_enrollments_course_semester ON enrollments(course_id, semester);"
+        "CREATE INDEX idx_prereq_course ON prerequisites(course_id);\n"
+        "CREATE INDEX idx_prereq_prereq_covering ON prerequisites(prerequisite_id) INCLUDE (course_id);\n"
+        "CREATE INDEX idx_courses_dept_covering ON courses(department_id) INCLUDE (id, code, title);"
     ),
     "seed_sql_large": (
         "SELECT setseed(0.42);\n\n"
