@@ -1,0 +1,123 @@
+services:
+  # Application database
+  app-db:
+    image: postgres:16
+    container_name: leaderboard-app-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${APP_DB_USER}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD}
+      POSTGRES_DB: ${APP_DB_NAME}
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${APP_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Sandbox PostgreSQL instance (primary)
+  sandbox-pg:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    volumes:
+      - sandbox-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Sandbox instance 2 — with indexes pre-created
+  sandbox-pg-indexed:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg-indexed
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    volumes:
+      - sandbox-indexed-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Sandbox instance 3 — larger dataset
+  sandbox-pg-large:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: leaderboard-sandbox-pg-large
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SANDBOX_DB_USER}
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD}
+      POSTGRES_DB: ${SANDBOX_DB_NAME}
+    volumes:
+      - sandbox-large-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SANDBOX_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Backend API (Gunicorn)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: leaderboard-backend
+    restart: unless-stopped
+    environment:
+      DEBUG: "0"
+      DB_NAME: ${APP_DB_NAME}
+      DB_USER: ${APP_DB_USER}
+      DB_PASSWORD: ${APP_DB_PASSWORD}
+      DB_HOST: app-db
+      DB_PORT: 5432
+      SANDBOX_INSTANCES: >-
+        default|Default (Small Data)|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME},
+        large|Large Dataset|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-large:5432/${SANDBOX_DB_NAME},
+        large-indexed|Large Dataset with Index|postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg-indexed:5432/${SANDBOX_DB_NAME}
+      SANDBOX_DATABASE_URL: postgresql://${SANDBOX_DB_USER}:${SANDBOX_DB_PASSWORD}@sandbox-pg:5432/${SANDBOX_DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+    depends_on:
+      app-db:
+        condition: service_healthy
+      sandbox-pg:
+        condition: service_healthy
+      sandbox-pg-indexed:
+        condition: service_healthy
+      sandbox-pg-large:
+        condition: service_healthy
+
+  # Frontend (Nginx — serves SPA + proxies /api to backend)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: leaderboard-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  app-db-data:
+  sandbox-data:
+  sandbox-indexed-data:
+  sandbox-large-data:
