@@ -34,9 +34,16 @@ def check_correctness(
             tuple(row[i] for i in col_mapping) for row in user_result.rows
         ]
 
-    normalized_user = sorted(_normalize_rows(user_rows))
-    normalized_truth = sorted(_normalize_rows(truth_rows))
+    normalized_user = sorted(_normalize_rows(user_rows), key=_sort_key)
+    normalized_truth = sorted(_normalize_rows(truth_rows), key=_sort_key)
     return normalized_user == normalized_truth
+
+
+def _sort_key(row: tuple):
+    """Sort key that handles None values by placing them before non-None."""
+    return tuple(
+        (0, "") if v is None else (1, str(v)) for v in row
+    )
 
 
 def _normalize_rows(rows: list[tuple]) -> list[tuple]:
