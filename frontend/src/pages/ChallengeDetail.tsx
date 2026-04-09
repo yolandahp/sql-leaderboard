@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
+import Pagination, { paginate, totalPages } from "../components/Pagination";
 import IndexAdvisorTab from "../components/index-advisor/IndexAdvisorTab";
 import type { IndexAdviceResult } from "../components/index-advisor/types";
 import PlanDiffTab from "../components/plan-diff/PlanDiffTab";
@@ -281,6 +282,7 @@ function ChallengeDetail() {
             leaderboard={leaderboard}
             mySubmissions={mySubmissions}
             isLoggedIn={!!user}
+            currentUsername={user?.username}
             selectedSubmissionId={selectedSubmissionId}
             onSelectSubmission={handleSelectSubmission}
           />
@@ -668,12 +670,14 @@ function LeaderboardPanel({
   leaderboard,
   mySubmissions,
   isLoggedIn,
+  currentUsername,
   selectedSubmissionId,
   onSelectSubmission,
 }: {
   leaderboard: LeaderboardRow[];
   mySubmissions: MySubmission[];
   isLoggedIn: boolean;
+  currentUsername?: string;
   selectedSubmissionId: number | null;
   onSelectSubmission: (id: number) => void;
 }) {
@@ -703,7 +707,7 @@ function LeaderboardPanel({
           </button>
         ))}
       </div>
-      {subTab === "ranking" && <ChallengeLeaderboard entries={leaderboard} />}
+      {subTab === "ranking" && <ChallengeLeaderboard entries={leaderboard} currentUsername={currentUsername} />}
       {subTab === "my-submissions" && (
         <MySubmissions
           entries={mySubmissions}
@@ -715,7 +719,14 @@ function LeaderboardPanel({
   );
 }
 
-function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
+function ChallengeLeaderboard({ entries, currentUsername }: { entries: LeaderboardRow[]; currentUsername?: string }) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const pages = totalPages(entries.length, PAGE_SIZE);
+  const paged = paginate(entries, page, PAGE_SIZE);
+
+  useEffect(() => setPage(1), [entries]);
+
   if (entries.length === 0) {
     return (
       <p className="text-gray-500 text-sm">
@@ -739,21 +750,37 @@ function ChallengeLeaderboard({ entries }: { entries: LeaderboardRow[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {entries.map((row) => (
-              <tr key={row.rank} className={row.rank === 1 ? "bg-yellow-50" : ""}>
-                <td className="px-6 py-3 font-semibold text-indigo-600">#{row.rank}</td>
-                <td className="px-6 py-3">{row.username}</td>
-                <td className="px-6 py-3 font-medium text-green-600">
-                  {row.best_total_time_ms.toFixed(2)} ms
-                </td>
-                <td className="px-6 py-3 text-gray-500">{row.best_execution_time_ms.toFixed(2)} ms</td>
-                <td className="px-6 py-3 text-gray-500">{row.best_planning_time_ms.toFixed(2)} ms</td>
-                <td className="px-6 py-3 text-gray-500">{row.last_submitted}</td>
-              </tr>
-            ))}
+            {paged.map((row) => {
+              const isMe = currentUsername === row.username;
+              return (
+                <tr
+                  key={row.rank}
+                  className={
+                    isMe
+                      ? "bg-indigo-50 hover:bg-indigo-100"
+                      : row.rank === 1
+                        ? "bg-yellow-50 hover:bg-yellow-100"
+                        : "hover:bg-gray-50"
+                  }
+                >
+                  <td className="px-6 py-3 font-semibold text-indigo-600">#{row.rank}</td>
+                  <td className="px-6 py-3">
+                    {row.username}
+                    {isMe && <span className="ml-2 text-xs text-indigo-600 font-medium">(you)</span>}
+                  </td>
+                  <td className="px-6 py-3 font-medium text-green-600">
+                    {row.best_total_time_ms.toFixed(2)} ms
+                  </td>
+                  <td className="px-6 py-3 text-gray-500">{row.best_execution_time_ms.toFixed(2)} ms</td>
+                  <td className="px-6 py-3 text-gray-500">{row.best_planning_time_ms.toFixed(2)} ms</td>
+                  <td className="px-6 py-3 text-gray-500">{row.last_submitted}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+      <Pagination currentPage={page} totalPages={pages} onPageChange={setPage} />
     </div>
   );
 }
@@ -767,6 +794,13 @@ function MySubmissions({
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const pages = totalPages(entries.length, PAGE_SIZE);
+  const paged = paginate(entries, page, PAGE_SIZE);
+
+  useEffect(() => setPage(1), [entries]);
+
   if (entries.length === 0) {
     return (
       <div className="mt-8">
@@ -793,7 +827,7 @@ function MySubmissions({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {entries.map((s) => {
+            {paged.map((s) => {
               const totalTime =
                 s.execution_time_ms != null && s.planning_time_ms != null
                   ? s.execution_time_ms + s.planning_time_ms
@@ -844,6 +878,7 @@ function MySubmissions({
           </tbody>
         </table>
       </div>
+      <Pagination currentPage={page} totalPages={pages} onPageChange={setPage} />
     </div>
   );
 }

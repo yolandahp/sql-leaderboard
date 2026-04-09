@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { apiFetch } from "../api/client";
+import Pagination, { paginate, totalPages } from "../components/Pagination";
 
 interface Submission {
   id: number;
@@ -216,6 +217,11 @@ function SubmissionHistory({
   submissions: Submission[];
   loading: boolean;
 }) {
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const pages = totalPages(submissions.length, PAGE_SIZE);
+  const paged = paginate(submissions, page, PAGE_SIZE);
+
   return (
     <>
       <h3 className="text-xl font-semibold text-gray-900 mb-4">
@@ -226,59 +232,62 @@ function SubmissionHistory({
       ) : submissions.length === 0 ? (
         <p className="text-gray-500">No submissions yet.</p>
       ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Challenge</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {submissions.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-gray-900">{s.id}</td>
-                  <td className="px-6 py-3 text-gray-900">
-                    {s.challenge_title ?? `Challenge ${s.challenge_id}`}
-                  </td>
-                  <td className="px-6 py-3">
-                    {s.error_message ? (
-                      <span className="text-red-600">Error</span>
-                    ) : s.is_correct ? (
-                      <span className="text-green-600 font-medium">Correct</span>
-                    ) : (
-                      <span className="text-yellow-600">Incorrect</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-3 text-gray-900">
-                    {s.execution_time_ms != null ? `${s.execution_time_ms.toFixed(2)} ms` : "--"}
-                  </td>
-                  <td className="px-6 py-3 text-gray-500">
-                    {new Date(s.submitted_at).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                  <td className="px-6 py-3">
-                    <Link
-                      to={`/challenges/${s.challenge_id}?submission=${s.id}`}
-                      className="text-indigo-600 text-sm font-medium hover:underline"
-                    >
-                      View →
-                    </Link>
-                  </td>
+        <>
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Challenge</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exec Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
+                  <th className="px-6 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {paged.map((s) => (
+                  <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-3 text-gray-900">{s.id}</td>
+                    <td className="px-6 py-3 text-gray-900">
+                      {s.challenge_title ?? `Challenge ${s.challenge_id}`}
+                    </td>
+                    <td className="px-6 py-3">
+                      {s.error_message ? (
+                        <span className="text-red-600">Error</span>
+                      ) : s.is_correct ? (
+                        <span className="text-green-600 font-medium">Correct</span>
+                      ) : (
+                        <span className="text-yellow-600">Incorrect</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-3 text-gray-900">
+                      {s.execution_time_ms != null ? `${s.execution_time_ms.toFixed(2)} ms` : "--"}
+                    </td>
+                    <td className="px-6 py-3 text-gray-500">
+                      {new Date(s.submitted_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-6 py-3">
+                      <Link
+                        to={`/challenges/${s.challenge_id}?submission=${s.id}`}
+                        className="text-indigo-600 text-sm font-medium hover:underline"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination currentPage={page} totalPages={pages} onPageChange={setPage} />
+        </>
       )}
     </>
   );

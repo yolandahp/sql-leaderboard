@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
+import Pagination, { paginate, totalPages } from "../components/Pagination";
 
 interface Challenge {
   id: number;
@@ -29,6 +30,8 @@ function Challenges() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   useEffect(() => {
     apiFetch<Challenge[]>("/api/challenges")
@@ -36,6 +39,9 @@ function Challenges() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Reset to page 1 when filters change
+  useEffect(() => setPage(1), [filter, search, sort]);
 
   const filtered = challenges
     .filter((c) => filter === "all" || c.difficulty === filter)
@@ -49,6 +55,9 @@ function Challenges() {
         default: return 0;
       }
     });
+
+  const paged = paginate(filtered, page, PAGE_SIZE);
+  const pages = totalPages(filtered.length, PAGE_SIZE);
 
   return (
     <div>
@@ -116,8 +125,9 @@ function Challenges() {
       ) : filtered.length === 0 ? (
         <p className="text-gray-500">No challenges yet. Check back soon!</p>
       ) : (
+        <>
         <div className="grid gap-4">
-          {filtered.map((c) => (
+          {paged.map((c) => (
             <Link
               key={c.id}
               to={`/challenges/${c.id}`}
@@ -174,6 +184,8 @@ function Challenges() {
             </Link>
           ))}
         </div>
+        <Pagination currentPage={page} totalPages={pages} onPageChange={setPage} />
+        </>
       )}
     </div>
   );
