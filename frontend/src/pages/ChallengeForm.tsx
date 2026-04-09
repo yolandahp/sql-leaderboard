@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../api/client";
 
@@ -165,6 +165,7 @@ function ChallengeForm() {
           mono
           placeholder="CREATE TABLE customers (&#10;  id SERIAL PRIMARY KEY,&#10;  name VARCHAR(100) NOT NULL&#10;);"
           required
+          allowFileUpload
         />
 
         <TextAreaInput
@@ -175,15 +176,7 @@ function ChallengeForm() {
           mono
           placeholder="INSERT INTO customers (name) VALUES ('Alice'), ('Bob');"
           required
-        />
-
-        <TextAreaInput
-          label="Index SQL (for indexed instance)"
-          value={form.index_sql}
-          onChange={(v) => updateField("index_sql", v)}
-          rows={4}
-          mono
-          placeholder="CREATE INDEX idx_orders_customer ON orders(customer_id);&#10;CREATE INDEX idx_orders_date ON orders(order_date);"
+          allowFileUpload
         />
 
         <TextAreaInput
@@ -193,6 +186,17 @@ function ChallengeForm() {
           rows={4}
           mono
           placeholder="INSERT INTO orders (customer_id, amount, order_date)&#10;SELECT (random()*4+1)::int, (random()*500)::numeric(10,2), '2025-01-01'::date + (random()*365)::int&#10;FROM generate_series(1, 10000);"
+          allowFileUpload
+        />
+
+        <TextAreaInput
+          label="Index SQL (for indexed instance)"
+          value={form.index_sql}
+          onChange={(v) => updateField("index_sql", v)}
+          rows={4}
+          mono
+          placeholder="CREATE INDEX idx_orders_customer ON orders(customer_id);&#10;CREATE INDEX idx_orders_date ON orders(order_date);"
+          allowFileUpload
         />
 
         <TextAreaInput
@@ -203,6 +207,7 @@ function ChallengeForm() {
           mono
           placeholder="SELECT name, COUNT(*) FROM customers GROUP BY name;"
           required
+          allowFileUpload
         />
 
         <div className="flex gap-3">
@@ -264,6 +269,7 @@ function TextAreaInput({
   mono,
   placeholder,
   required,
+  allowFileUpload,
 }: {
   label: string;
   value: string;
@@ -272,12 +278,44 @@ function TextAreaInput({
   mono?: boolean;
   placeholder?: string;
   required?: boolean;
+  allowFileUpload?: boolean;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
+      <div className="flex items-center justify-between mb-1">
+        <label className="block text-sm font-medium text-gray-700">
+          {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        {allowFileUpload && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              Upload from file
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".sql,.txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </>
+        )}
+      </div>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
