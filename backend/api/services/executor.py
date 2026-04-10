@@ -8,7 +8,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-TIMING_RUNS = 10
+TIMING_RUNS = 5
 
 
 class ExecutionError(Exception):
