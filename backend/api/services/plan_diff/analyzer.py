@@ -26,12 +26,25 @@ def list_comparison_targets(current_submission, submissions) -> dict[str, Any]:
     previous_id = None
     fastest_correct_id = None
     fastest_correct_time = None
+    found_previous = False
 
-    for index, submission in enumerate(submissions):
-        target_kind = "earlier"
-        if index == 0:
+    for submission in submissions:
+        is_later = (
+            submission.submitted_at > current_submission.submitted_at
+            or (
+                submission.submitted_at == current_submission.submitted_at
+                and submission.id > current_submission.id
+            )
+        )
+
+        if is_later:
+            target_kind = "later"
+        elif not found_previous:
             target_kind = "previous"
             previous_id = submission.id
+            found_previous = True
+        else:
+            target_kind = "earlier"
 
         if submission.is_correct and submission.execution_time_ms is not None:
             if fastest_correct_time is None or submission.execution_time_ms < fastest_correct_time:

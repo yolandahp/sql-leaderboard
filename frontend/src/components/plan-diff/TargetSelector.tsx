@@ -58,7 +58,9 @@ function TargetSelector({
                     ? " \u2022 fastest correct"
                     : target.kind === "previous"
                       ? " \u2022 previous"
-                      : ""}
+                      : target.kind === "later"
+                        ? " \u2022 later"
+                        : ""}
                   {target.has_plan ? "" : " \u2022 no plan"}
                 </option>
               ))}

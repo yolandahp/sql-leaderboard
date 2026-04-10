@@ -283,8 +283,7 @@ def submission_comparison_targets(request, pk):
         Submission.objects.filter(
             user=request.user,
             challenge=current_submission.challenge,
-            submitted_at__lt=current_submission.submitted_at,
-        ).order_by("-submitted_at", "-id")
+        ).exclude(pk=current_submission.pk).order_by("-submitted_at", "-id")
     )
 
     return Response(list_comparison_targets(current_submission, candidates))

@@ -8,7 +8,7 @@ export interface ComparisonSubmission {
   has_plan: boolean;
   instance_ids: string[];
   instance_count: number;
-  kind?: "previous" | "fastest_correct" | "earlier";
+  kind?: "previous" | "fastest_correct" | "earlier" | "later";
 }
 
 export interface InstanceOption {
